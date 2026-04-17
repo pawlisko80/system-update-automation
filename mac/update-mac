@@ -44,6 +44,33 @@ else
 fi
 
 echo "" | tee -a $LOG
+echo "========================================" | tee -a $LOG
+echo "⚠️  Manual update reminders:" | tee -a $LOG
+echo "========================================" | tee -a $LOG
+
+if [ -d "/Applications/Samsung Magician.app" ]; then
+    echo "🔵 Samsung Magician — open app to check for updates" | tee -a $LOG
+else
+    echo "⚪ Samsung Magician — not installed" | tee -a $LOG
+fi
+
+if [ -d "/Applications/VMware Fusion.app" ]; then
+    echo "🔵 VMware Fusion — check via Help → Software Updates" | tee -a $LOG
+else
+    echo "⚪ VMware Fusion — not installed (download from support.broadcom.com)" | tee -a $LOG
+fi
+
+if [ -d "/Applications/OVPN/OVPN.app" ] || [ -d "/Applications/OVPN.app" ]; then
+    echo "🔵 OVPN — check for updates within the app" | tee -a $LOG
+else
+    echo "⚪ OVPN — not installed" | tee -a $LOG
+fi
+
+if [ -d "/Applications/Microsoft Office" ] || ls /Applications | grep -q "Microsoft Word"; then
+    echo "🔵 Microsoft Office — check via Help → Check for Updates in any Office app" | tee -a $LOG
+fi
+
+echo "" | tee -a $LOG
 echo "✅ All done! Log saved to $LOG" | tee -a $LOG
 echo "Press RETURN to close..."
 read
