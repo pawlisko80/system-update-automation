@@ -6,6 +6,13 @@
 # Repo: https://github.com/pawlisko80/system-update-automation
 # =============================================================
 
+# =============================================================
+# Configuration
+# =============================================================
+SELF_UPDATE_INTERVAL_DAYS=7        # How often to prompt for script updates
+SELF_UPDATE_SCRIPT=~/scripts/self-update.sh
+SELF_UPDATE_STAMP=~/.scripts-last-update
+
 LOG_DIR=~/Documents/logs/mac
 LOG=$LOG_DIR/mac-update.log
 
@@ -15,21 +22,18 @@ LOG=$LOG_DIR/mac-update.log
 check_requirements() {
     local errors=0
 
-    # macOS version check (require 12+)
     local macos_ver=$(sw_vers -productVersion | cut -d. -f1)
     if [ "$macos_ver" -lt 12 ] 2>/dev/null; then
         echo "ERROR: macOS 12 (Monterey) or later required. Found: $(sw_vers -productVersion)"
         errors=$((errors + 1))
     fi
 
-    # Homebrew check
     if ! command -v /opt/homebrew/bin/brew &>/dev/null && ! command -v /usr/local/bin/brew &>/dev/null; then
         echo "ERROR: Homebrew not found."
         echo "Install from: https://brew.sh"
         errors=$((errors + 1))
     fi
 
-    # mas check
     if ! command -v /opt/homebrew/bin/mas &>/dev/null; then
         echo "WARNING: mas not found. App Store updates will be skipped."
         echo "Install with: brew install mas"
@@ -42,10 +46,60 @@ check_requirements() {
 }
 
 # =============================================================
+# Self-update check
+# =============================================================
+check_self_update() {
+    # Skip if self-update script doesn't exist
+    if [ ! -f "$SELF_UPDATE_SCRIPT" ]; then
+        return
+    fi
+
+    # Skip if no internet (quick check)
+    if ! ping -c 1 -W 2 github.com &>/dev/null 2>&1; then
+        return
+    fi
+
+    local should_ask=0
+    local days_since=0
+
+    if [ -f "$SELF_UPDATE_STAMP" ]; then
+        local last_update=$(cat "$SELF_UPDATE_STAMP" 2>/dev/null)
+        local now=$(date +%s)
+        local diff=$(( (now - last_update) / 86400 ))
+        days_since=$diff
+        if [ "$diff" -ge "$SELF_UPDATE_INTERVAL_DAYS" ]; then
+            should_ask=1
+        fi
+    else
+        should_ask=1
+        days_since="unknown"
+    fi
+
+    if [ "$should_ask" -eq 1 ]; then
+        echo ""
+        if [ "$days_since" = "unknown" ]; then
+            echo "🔄 Script updates have never been checked."
+        else
+            echo "🔄 Scripts last updated $days_since day(s) ago (interval: ${SELF_UPDATE_INTERVAL_DAYS} days)."
+        fi
+        echo -n "   Pull latest scripts from GitHub? (Y/N): "
+        read REPLY
+        if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+            echo ""
+            "$SELF_UPDATE_SCRIPT"
+            echo ""
+        fi
+        # Update timestamp regardless of answer
+        date +%s > "$SELF_UPDATE_STAMP"
+    fi
+}
+
+# =============================================================
 # Setup
 # =============================================================
 mkdir -p "$LOG_DIR"
 check_requirements
+check_self_update
 
 echo "========================================" | tee -a $LOG
 echo "🍺 Starting Mac update - $(date)" | tee -a $LOG
