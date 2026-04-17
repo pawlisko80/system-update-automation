@@ -1,0 +1,49 @@
+#!/bin/zsh
+LOG=~/Documents/logs/mac-maintenance/mac-update.log
+
+echo "========================================" | tee -a $LOG
+echo "🍺 Starting Mac update - $(date)" | tee -a $LOG
+echo "========================================" | tee -a $LOG
+echo "" | tee -a $LOG
+
+echo "📦 Updating Homebrew..." | tee -a $LOG
+/opt/homebrew/bin/brew update 2>&1 | tee -a $LOG
+
+echo "" | tee -a $LOG
+echo "⬆️  Upgrading Homebrew packages..." | tee -a $LOG
+/opt/homebrew/bin/brew upgrade --greedy 2>&1 | tee -a $LOG
+
+echo "" | tee -a $LOG
+echo "🛍️  Updating App Store apps..." | tee -a $LOG
+export MAS_NO_AUTO_INDEX=1
+/opt/homebrew/bin/mas upgrade 2>&1 | tee -a $LOG
+
+echo "" | tee -a $LOG
+echo "🧹 Cleaning up..." | tee -a $LOG
+/opt/homebrew/bin/brew cleanup 2>&1 | tee -a $LOG
+
+echo "" | tee -a $LOG
+echo "🍎 Checking for macOS updates..." | tee -a $LOG
+MACOS_UPDATES=$(softwareupdate -l 2>&1)
+echo "$MACOS_UPDATES" | tee -a $LOG
+
+if echo "$MACOS_UPDATES" | grep -q "Label:"; then
+    echo "" | tee -a $LOG
+    echo "⚠️  macOS updates are available!" | tee -a $LOG
+    echo "Press Y to install now, or RETURN to skip..."
+    read REPLY
+    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+        echo "⬆️  Installing macOS updates..." | tee -a $LOG
+        sudo softwareupdate --install --all 2>&1 | tee -a $LOG
+        echo "✅ macOS updates installed! A reboot may be required." | tee -a $LOG
+    else
+        echo "⏭️  Skipping macOS updates." | tee -a $LOG
+    fi
+else
+    echo "✅ macOS is up to date!" | tee -a $LOG
+fi
+
+echo "" | tee -a $LOG
+echo "✅ All done! Log saved to $LOG" | tee -a $LOG
+echo "Press RETURN to close..."
+read
