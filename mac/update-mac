@@ -1,11 +1,61 @@
 #!/bin/zsh
-LOG=~/Documents/logs/mac/mac-update.log
+# =============================================================
+# update-mac — macOS maintenance and update automation script
+# Requires: macOS 12 (Monterey)+, Homebrew 3.0+, mas 1.8+
+# Tested on: macOS 26 Tahoe (Apple Silicon)
+# Repo: https://github.com/pawlisko80/system-update-automation
+# =============================================================
+
+LOG_DIR=~/Documents/logs/mac
+LOG=$LOG_DIR/mac-update.log
+
+# =============================================================
+# Version checks
+# =============================================================
+check_requirements() {
+    local errors=0
+
+    # macOS version check (require 12+)
+    local macos_ver=$(sw_vers -productVersion | cut -d. -f1)
+    if [ "$macos_ver" -lt 12 ] 2>/dev/null; then
+        echo "ERROR: macOS 12 (Monterey) or later required. Found: $(sw_vers -productVersion)"
+        errors=$((errors + 1))
+    fi
+
+    # Homebrew check
+    if ! command -v /opt/homebrew/bin/brew &>/dev/null && ! command -v /usr/local/bin/brew &>/dev/null; then
+        echo "ERROR: Homebrew not found."
+        echo "Install from: https://brew.sh"
+        errors=$((errors + 1))
+    fi
+
+    # mas check
+    if ! command -v /opt/homebrew/bin/mas &>/dev/null; then
+        echo "WARNING: mas not found. App Store updates will be skipped."
+        echo "Install with: brew install mas"
+    fi
+
+    if [ "$errors" -gt 0 ]; then
+        echo "Aborting due to $errors error(s)."
+        exit 1
+    fi
+}
+
+# =============================================================
+# Setup
+# =============================================================
+mkdir -p "$LOG_DIR"
+check_requirements
 
 echo "========================================" | tee -a $LOG
 echo "🍺 Starting Mac update - $(date)" | tee -a $LOG
+echo "macOS $(sw_vers -productVersion) | $(uname -m)" | tee -a $LOG
 echo "========================================" | tee -a $LOG
 echo "" | tee -a $LOG
 
+# =============================================================
+# Homebrew
+# =============================================================
 echo "📦 Updating Homebrew..." | tee -a $LOG
 /opt/homebrew/bin/brew update 2>&1 | tee -a $LOG
 
@@ -13,15 +63,28 @@ echo "" | tee -a $LOG
 echo "⬆️  Upgrading Homebrew packages..." | tee -a $LOG
 /opt/homebrew/bin/brew upgrade --greedy 2>&1 | tee -a $LOG
 
+# =============================================================
+# App Store
+# =============================================================
 echo "" | tee -a $LOG
 echo "🛍️  Updating App Store apps..." | tee -a $LOG
-export MAS_NO_AUTO_INDEX=1
-/opt/homebrew/bin/mas upgrade 2>&1 | tee -a $LOG
+if command -v /opt/homebrew/bin/mas &>/dev/null; then
+    export MAS_NO_AUTO_INDEX=1
+    /opt/homebrew/bin/mas upgrade 2>&1 | tee -a $LOG
+else
+    echo "⚠️  mas not installed — skipping App Store updates" | tee -a $LOG
+fi
 
+# =============================================================
+# Cleanup
+# =============================================================
 echo "" | tee -a $LOG
 echo "🧹 Cleaning up..." | tee -a $LOG
 /opt/homebrew/bin/brew cleanup 2>&1 | tee -a $LOG
 
+# =============================================================
+# macOS updates
+# =============================================================
 echo "" | tee -a $LOG
 echo "🍎 Checking for macOS updates..." | tee -a $LOG
 MACOS_UPDATES=$(softwareupdate -l 2>&1)
@@ -43,6 +106,9 @@ else
     echo "✅ macOS is up to date!" | tee -a $LOG
 fi
 
+# =============================================================
+# Manual update reminders
+# =============================================================
 echo "" | tee -a $LOG
 echo "========================================" | tee -a $LOG
 echo "⚠️  Manual update reminders:" | tee -a $LOG
@@ -66,7 +132,7 @@ else
     echo "⚪ OVPN — not installed" | tee -a $LOG
 fi
 
-if [ -d "/Applications/Microsoft Office" ] || ls /Applications | grep -q "Microsoft Word"; then
+if ls /Applications | grep -q "Microsoft Word"; then
     echo "🔵 Microsoft Office — check via Help → Check for Updates in any Office app" | tee -a $LOG
 fi
 
