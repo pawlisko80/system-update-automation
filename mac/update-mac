@@ -48,7 +48,7 @@ echo "========================================" | tee -a $LOG
 echo "⚠️  Manual update reminders:" | tee -a $LOG
 echo "========================================" | tee -a $LOG
 
-if [ -d "/Applications/Samsung Magician.app" ]; then
+if [ -d "/Applications/SamsungMagician.app" ]; then
     echo "🔵 Samsung Magician — open app to check for updates" | tee -a $LOG
 else
     echo "⚪ Samsung Magician — not installed" | tee -a $LOG
