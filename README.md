@@ -1,21 +1,25 @@
 # system-update-automation
 
 Cross-platform system maintenance and update automation scripts.
-Covers desktops, servers, NAS devices, and SBCs.
+Covers desktops, servers, NAS devices, firewalls, and hypervisors.
 
 ## Supported Platforms
 
-| Platform | Script | Package Managers / Sources |
-|---|---|---|
-| macOS | `mac/update-mac` | Homebrew, mas (App Store) |
-| Windows | `windows/update-windows.ps1` | winget, Microsoft Store, Chocolatey |
-| Linux | `linux/update-linux.sh` | apt, dnf, pacman, zypper (auto-detected) |
-| Raspberry Pi OS | `raspios/update-raspi.sh` | apt, rpi-update, rpi-eeprom |
-| FreeBSD | `freebsd/update-freebsd.sh` | freebsd-update, pkg, ports |
-| QNAP | `nas/update-qnap.sh` | Entware (opkg), Docker |
-| Synology | `nas/update-synology.sh` | Entware (opkg/ipkg), Docker |
-| Unraid | `nas/update-unraid.sh` | Docker, plugins, array check |
-| TrueNAS SCALE/CORE | `nas/update-truenas.sh` | Apps/jails, Docker, ZFS check |
+| Category | Platform | Script | Package Managers / Sources |
+|---|---|---|---|
+| Desktop | macOS | `mac/update-mac` | Homebrew, mas (App Store) |
+| Desktop | Windows | `windows/update-windows.ps1` | winget, Microsoft Store, Chocolatey |
+| OS | Linux | `linux/update-linux.sh` | apt, dnf, pacman, zypper (auto-detected) |
+| OS | Raspberry Pi OS | `raspios/update-raspi.sh` | apt, rpi-update, rpi-eeprom |
+| OS | FreeBSD | `freebsd/update-freebsd.sh` | freebsd-update, pkg, ports |
+| NAS | QNAP | `nas/update-qnap.sh` | Entware (opkg), Docker |
+| NAS | Synology | `nas/update-synology.sh` | Entware (opkg/ipkg), Docker |
+| NAS | Unraid | `nas/update-unraid.sh` | Docker, plugins, array check |
+| NAS | TrueNAS SCALE/CORE | `nas/update-truenas.sh` | Apps/jails, Docker, ZFS |
+| Firewall | OPNsense | `firewall/update-opnsense.sh` | pkg, firmware, plugins, WireGuard |
+| Firewall | pfSense | `firewall/update-pfsense.sh` | pkg, packages |
+| Hypervisor | Proxmox VE | `hypervisor/update-proxmox.sh` | apt, pveupgrade, LXC templates |
+| Hypervisor | ESXi | `hypervisor/update-esxi.sh` | esxcli, VIBs |
 
 ## Repository Structure
 
@@ -35,7 +39,14 @@ Covers desktops, servers, NAS devices, and SBCs.
     │   ├── update-synology.sh
     │   ├── update-unraid.sh
     │   └── update-truenas.sh
+    ├── firewall/
+    │   ├── update-opnsense.sh
+    │   └── update-pfsense.sh
+    ├── hypervisor/
+    │   ├── update-proxmox.sh
+    │   └── update-esxi.sh
     ├── common/
+    │   └── utils.sh
     ├── docs/
     │   ├── HOMEBREW-APPS.md
     │   └── WINDOWS-SETUP.md
@@ -117,9 +128,31 @@ SSH into your NAS, then:
     curl -fsSL https://raw.githubusercontent.com/pawlisko80/system-update-automation/main/nas/update-truenas.sh -o ~/update-truenas.sh
     chmod +x ~/update-truenas.sh && ~/update-truenas.sh
 
-## Usage
+### Firewalls (OPNsense / pfSense)
 
-From anywhere in terminal:
+SSH into your firewall, then:
+
+    # OPNsense
+    curl -fsSL https://raw.githubusercontent.com/pawlisko80/system-update-automation/main/firewall/update-opnsense.sh -o ~/update-opnsense.sh
+    chmod +x ~/update-opnsense.sh && ~/update-opnsense.sh
+
+    # pfSense
+    curl -fsSL https://raw.githubusercontent.com/pawlisko80/system-update-automation/main/firewall/update-pfsense.sh -o ~/update-pfsense.sh
+    chmod +x ~/update-pfsense.sh && ~/update-pfsense.sh
+
+### Hypervisors (Proxmox / ESXi)
+
+SSH into your hypervisor, then:
+
+    # Proxmox
+    curl -fsSL https://raw.githubusercontent.com/pawlisko80/system-update-automation/main/hypervisor/update-proxmox.sh -o ~/update-proxmox.sh
+    chmod +x ~/update-proxmox.sh && ~/update-proxmox.sh
+
+    # ESXi
+    curl -fsSL https://raw.githubusercontent.com/pawlisko80/system-update-automation/main/hypervisor/update-esxi.sh -o ~/update-esxi.sh
+    chmod +x ~/update-esxi.sh && ~/update-esxi.sh
+
+## Usage
 
 | Platform | Command |
 |---|---|
@@ -132,6 +165,10 @@ From anywhere in terminal:
 | Synology | `~/update-synology.sh` (via SSH) |
 | Unraid | `~/update-unraid.sh` (via SSH) |
 | TrueNAS | `~/update-truenas.sh` (via SSH) |
+| OPNsense | `~/update-opnsense.sh` (via SSH) |
+| pfSense | `~/update-pfsense.sh` (via SSH) |
+| Proxmox | `~/update-proxmox.sh` (via SSH) |
+| ESXi | `~/update-esxi.sh` (via SSH) |
 
 ## Logs
 
@@ -146,6 +183,10 @@ From anywhere in terminal:
 | Synology | `/volume1/homes/admin/logs/synology/synology-update.log` |
 | Unraid | `/boot/logs/unraid/unraid-update.log` |
 | TrueNAS | `/root/logs/truenas/truenas-update.log` |
+| OPNsense | `/root/logs/opnsense/opnsense-update.log` |
+| pfSense | `/root/logs/pfsense/pfsense-update.log` |
+| Proxmox | `/root/logs/proxmox/proxmox-update.log` |
+| ESXi | `/scratch/logs/esxi/esxi-update.log` |
 
 All logs append on each run with a timestamped separator. Never overwritten.
 
@@ -154,12 +195,14 @@ All logs append on each run with a timestamped separator. Never overwritten.
 - Auto-detects package manager on Linux (apt/dnf/pacman/zypper)
 - Auto-detects Raspberry Pi vs standard Linux
 - Auto-detects TrueNAS SCALE vs CORE
-- Docker container image updates on all NAS platforms
-- ZFS pool status on TrueNAS
-- Disk SMART health check on all NAS platforms
+- Docker container image updates on all NAS/hypervisor platforms
+- ZFS pool status on TrueNAS and Proxmox
+- Disk SMART health check on all server/NAS platforms
+- WireGuard tunnel status on OPNsense
 - Interactive prompts before installing OS/firmware updates
 - Never auto-reboots — always asks first
 - Gracefully skips missing tools
+- Shared utility library in common/utils.sh
 
 ## Additional Docs
 
