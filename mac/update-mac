@@ -1,5 +1,5 @@
 #!/bin/zsh
-LOG=~/Documents/logs/mac-maintenance/mac-update.log
+LOG=~/Documents/logs/mac/mac-update.log
 
 echo "========================================" | tee -a $LOG
 echo "🍺 Starting Mac update - $(date)" | tee -a $LOG

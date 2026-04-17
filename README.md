@@ -1,79 +1,131 @@
-# mac-update-automation
+# system-update-automation
 
-Mac maintenance and update automation scripts for macOS (tested on macOS 26 Tahoe, Apple Silicon).
+Cross-platform system maintenance and update automation scripts.
+Tested on macOS 26 Tahoe (Apple Silicon), Windows 11, Raspberry Pi OS, Ubuntu, and FreeBSD.
+
+## Supported Platforms
+
+| Platform | Script | Package Managers |
+|---|---|---|
+| macOS | `mac/update-mac` | Homebrew, mas (App Store) |
+| Windows | `windows/update-windows.ps1` | winget, Microsoft Store, Chocolatey |
+| Linux | `linux/update-linux.sh` | apt, dnf, pacman, zypper (auto-detected) |
+| Raspberry Pi OS | `raspios/update-raspi.sh` | apt, rpi-update, rpi-eeprom |
+| FreeBSD | `freebsd/update-freebsd.sh` | freebsd-update, pkg, ports |
 
 ## Repository Structure
 
-    ~/scripts/
-    ├── mac-maintenance/
-    │   └── update-mac          # Main update script
-    ├── homelab/                # Future homelab automation scripts
+    system-update-automation/
+    ├── mac/
+    │   └── update-mac
+    ├── windows/
+    │   └── update-windows.ps1
+    ├── linux/
+    │   └── update-linux.sh
+    ├── raspios/
+    │   └── update-raspi.sh
+    ├── freebsd/
+    │   └── update-freebsd.sh
+    ├── common/
+    ├── docs/
+    │   ├── HOMEBREW-APPS.md
+    │   └── WINDOWS-SETUP.md
+    ├── install.sh
     └── README.md
 
-## Logs
+## Quick Install (Mac/Linux/RasPi/FreeBSD)
 
-All logs are stored in:
+    curl -fsSL https://raw.githubusercontent.com/pawlisko80/system-update-automation/main/install.sh | bash
 
-    ~/Documents/logs/mac-maintenance/mac-update.log
+The installer auto-detects your OS and sets up the correct script and PATH.
 
-Each run appends to the same file with a timestamped separator for easy review.
+## Manual Installation
 
-## Prerequisites
+### macOS
 
-### 1. Homebrew
-
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-After install on Apple Silicon, add to PATH:
-
-    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-
-### 2. mas (Mac App Store CLI)
-
-    brew install mas
-
-### 3. Xcode Command Line Tools
-
-    xcode-select --install
-
-## Installation
-
-    git clone https://github.com/pawlisko80/mac-update-automation.git ~/scripts
-    mkdir -p ~/Documents/logs/mac-maintenance
-    chmod +x ~/scripts/mac-maintenance/update-mac
-    echo 'export PATH="$HOME/scripts/mac-maintenance:$HOME/scripts/homelab:$PATH"' >> ~/.zprofile
+    git clone https://github.com/pawlisko80/system-update-automation.git ~/scripts
+    mkdir -p ~/Documents/logs/mac
+    chmod +x ~/scripts/mac/update-mac
+    echo 'export PATH="$HOME/scripts/mac:$HOME/scripts/common:$PATH"' >> ~/.zprofile
     source ~/.zprofile
     which update-mac
 
+Prerequisites: Homebrew, mas
+
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    brew install mas
+
+### Windows
+
+    git clone https://github.com/pawlisko80/system-update-automation.git C:\scripts
+
+Run as Administrator in PowerShell:
+
+    C:\scripts\windows\update-windows.ps1
+
+See docs/WINDOWS-SETUP.md for full prerequisites and shortcut setup.
+
+### Linux
+
+    git clone https://github.com/pawlisko80/system-update-automation.git ~/scripts
+    mkdir -p ~/logs/linux
+    chmod +x ~/scripts/linux/update-linux.sh
+    echo 'export PATH="$HOME/scripts/linux:$HOME/scripts/common:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+
+### Raspberry Pi OS
+
+    git clone https://github.com/pawlisko80/system-update-automation.git ~/scripts
+    mkdir -p ~/logs/raspios
+    chmod +x ~/scripts/raspios/update-raspi.sh
+    echo 'export PATH="$HOME/scripts/raspios:$HOME/scripts/common:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+
+### FreeBSD
+
+    git clone https://github.com/pawlisko80/system-update-automation.git ~/scripts
+    mkdir -p ~/logs/freebsd
+    chmod +x ~/scripts/freebsd/update-freebsd.sh
+    echo 'export PATH="$HOME/scripts/freebsd:$HOME/scripts/common:$PATH"' >> ~/.profile
+    source ~/.profile
+
 ## Usage
 
-From anywhere in Terminal:
+From anywhere in terminal:
 
-    update-mac
-
-Or double-click `update-mac` in Finder and Open With Terminal.
-
-## What It Does
-
-| Step | Action |
+| Platform | Command |
 |---|---|
-| Homebrew update | Refreshes package index |
-| Homebrew upgrade | Upgrades all formulae and casks including auto-updating ones (--greedy) |
-| App Store | Updates all Mac App Store apps via mas |
-| Cleanup | Removes old Homebrew versions and cached downloads |
-| macOS check | Lists available macOS/system updates |
-| Optional install | Prompts Y/RETURN to install macOS updates immediately |
+| macOS | `update-mac` |
+| Linux | `update-linux` |
+| Raspberry Pi | `update-raspi` |
+| FreeBSD | `update-freebsd` |
+| Windows | `update-windows` (as Administrator) |
 
-## Notes
+## Logs
 
-- **Samsung Magician** will always show `installer manual` warning — update manually within the app
-- **sudo** is required for macOS software updates — you will be prompted when installing system updates
-- Script is safe to run multiple times — appends to log, never overwrites
+| Platform | Log Location |
+|---|---|
+| macOS | `~/Documents/logs/mac/mac-update.log` |
+| Linux | `~/logs/linux/linux-update.log` |
+| Raspberry Pi | `~/logs/raspios/raspi-update.log` |
+| FreeBSD | `~/logs/freebsd/freebsd-update.log` |
+| Windows | `%USERPROFILE%\Documents\logs\windows-maintenance\windows-update.log` |
 
-## Recommended Apps to Manage via Homebrew
+All logs append on each run with a timestamped separator. Never overwritten.
 
-See [HOMEBREW-APPS.md](HOMEBREW-APPS.md) for the full list of apps migrated from DMG to Homebrew management.
+## Features
+
+- Auto-detects package manager on Linux (apt/dnf/pacman/zypper)
+- Auto-detects Raspberry Pi vs standard Linux
+- Interactive prompts before installing OS/firmware updates
+- Never auto-reboots — always asks first
+- Gracefully skips missing tools (snap, flatpak, chocolatey, ports)
+- Consistent log format across all platforms
+
+## Additional Docs
+
+- macOS app list: docs/HOMEBREW-APPS.md
+- Windows setup guide: docs/WINDOWS-SETUP.md
 
 ## License
 
