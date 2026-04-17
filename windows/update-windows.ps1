@@ -58,7 +58,7 @@ Write-Log ""
 Write-Log "Checking winget..."
 if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Log "Upgrading all packages..."
-    $out = winget upgrade --all --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1
+    $out = winget upgrade --all --accept-source-agreements --accept-package-agreements --disable-interactivity --exclude Microsoft.Edge 2>&1
     $out | ForEach-Object {
         $clean = ($_ -replace '[^\x20-\x7E]', '').Trim()
         if (Should-LogLine $clean) { Write-Log $clean }
@@ -130,3 +130,4 @@ Write-Log "All done! Log saved to $LogFile"
 Write-Separator
 Write-Host ""
 Read-Host "Press ENTER to close"
+
