@@ -1,7 +1,8 @@
 #!/bin/sh
 # =============================================================
 # update-esxi — VMware ESXi maintenance script
-# Covers: esxcli updates, VIB patches, patch baseline check
+# Requires: ESXi 6.7+
+# Covers: esxcli updates, VIB patches, VM/datastore status
 # Run directly on ESXi host via SSH
 # Repo: https://github.com/pawlisko80/system-update-automation
 # =============================================================
@@ -9,7 +10,44 @@
 LOG_DIR="/scratch/logs/esxi"
 LOG_FILE="$LOG_DIR/esxi-update.log"
 
-mkdir -p "$LOG_DIR"
+check_requirements() {
+    errors=0
+
+    # Must be ESXi
+    if ! command -v esxcli >/dev/null 2>&1; then
+        echo "ERROR: esxcli not found. Is this an ESXi host?"
+        errors=$((errors + 1))
+    fi
+
+    if ! command -v vmware >/dev/null 2>&1; then
+        echo "ERROR: vmware command not found. Is this an ESXi host?"
+        errors=$((errors + 1))
+    fi
+
+    # Version check (require 6.7+)
+    if command -v vmware >/dev/null 2>&1; then
+        ver=$(vmware -v 2>/dev/null | grep -oP 'ESXi \K[\d.]+' | head -1)
+        major=$(echo "$ver" | cut -d. -f1)
+        minor=$(echo "$ver" | cut -d. -f2)
+        if [ -n "$major" ]; then
+            if [ "$major" -lt 6 ] 2>/dev/null || ([ "$major" -eq 6 ] && [ "$minor" -lt 7 ] 2>/dev/null); then
+                echo "ERROR: ESXi 6.7 or later required. Found: $ver"
+                errors=$((errors + 1))
+            fi
+        fi
+    fi
+
+    # Must run as root
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "ERROR: This script must be run as root."
+        errors=$((errors + 1))
+    fi
+
+    if [ "$errors" -gt 0 ]; then
+        echo "Aborting due to $errors error(s)."
+        exit 1
+    fi
+}
 
 write_log() {
     message="$1"
@@ -21,61 +59,54 @@ write_separator() {
     echo "============================================================" | tee -a "$LOG_FILE"
 }
 
+mkdir -p "$LOG_DIR"
+check_requirements
+
 write_separator
 write_log "🟦 ESXi update started - $(date)"
-write_log "📋 Version: $(vmware -v 2>/dev/null || echo 'unknown')"
-write_log "📋 Hostname: $(hostname)"
+write_log "Version: $(vmware -v 2>/dev/null || echo 'unknown')"
+write_log "Hostname: $(hostname)"
 write_separator
 
-# =============================================================
 # Current patch level
-# =============================================================
 write_log ""
 write_log "📋 Current patch level..."
 esxcli system version get 2>&1 | tee -a "$LOG_FILE"
 
-# =============================================================
 # Installed VIBs
-# =============================================================
 write_log ""
 write_log "📦 Installed VIBs..."
 esxcli software vib list 2>&1 | tee -a "$LOG_FILE"
 
-# =============================================================
-# Online depot update (requires internet access from ESXi)
-# =============================================================
+# Online depot update
 write_log ""
 write_log "🔧 Checking for updates from VMware depot..."
-write_log "ℹ️  Online update requires ESXi to have internet access."
-
+write_log "ℹ️  Online update requires ESXi internet access."
 printf "Check VMware online depot for updates? (y/N): "
 read -r REPLY
 if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
-    write_log "⬆️  Checking VMware depot..."
+    write_log "⬆️  Enabling HTTP client firewall rule..."
     esxcli network firewall ruleset set -e true -r httpClient 2>&1 | tee -a "$LOG_FILE"
-
-    UPDATE_CHECK=$(esxcli software sources profile list -d https://hostupdate.vmware.com/software/VUM/PRODUCTION/main/vmw-depot-index.xml 2>&1)
-    echo "$UPDATE_CHECK" | tee -a "$LOG_FILE"
-
+    write_log "⬆️  Checking VMware depot..."
+    esxcli software sources profile list \
+        -d https://hostupdate.vmware.com/software/VUM/PRODUCTION/main/vmw-depot-index.xml \
+        2>&1 | tee -a "$LOG_FILE"
+    write_log "⬆️  Disabling HTTP client firewall rule..."
     esxcli network firewall ruleset set -e false -r httpClient 2>&1 | tee -a "$LOG_FILE"
 else
     write_log "⏭️  Skipping online depot check."
-    write_log "ℹ️  For offline updates, use VMware vSphere Update Manager or:"
-    write_log "    esxcli software profile update -d /path/to/depot.zip -p ESXi-x.x.x-xxxxxx-standard"
+    write_log "ℹ️  For offline updates:"
+    write_log "    esxcli software profile update -d /path/to/depot.zip -p ESXi-x.x.x-standard"
 fi
 
-# =============================================================
-# VM status
-# =============================================================
+# VM inventory
 write_log ""
 write_log "🖥️  VM inventory..."
-
 if command -v vim-cmd >/dev/null 2>&1; then
     write_log "📋 Registered VMs:"
     vim-cmd vmsvc/getallvms 2>&1 | tee -a "$LOG_FILE"
-
     write_log ""
-    write_log "📋 Running VMs:"
+    write_log "📋 VM power states:"
     vim-cmd vmsvc/getallvms 2>/dev/null | awk 'NR>1 {print $1}' | while read -r vmid; do
         POWER=$(vim-cmd vmsvc/power.getstate "$vmid" 2>/dev/null | tail -1)
         NAME=$(vim-cmd vmsvc/get.summary "$vmid" 2>/dev/null | grep "name = " | head -1 | awk -F'"' '{print $2}')
@@ -83,31 +114,20 @@ if command -v vim-cmd >/dev/null 2>&1; then
     done
 fi
 
-# =============================================================
 # Datastore status
-# =============================================================
 write_log ""
 write_log "💾 Datastore status..."
 esxcli storage filesystem list 2>&1 | tee -a "$LOG_FILE"
 
-# =============================================================
 # Network adapters
-# =============================================================
 write_log ""
 write_log "🌐 Network adapters..."
 esxcli network nic list 2>&1 | tee -a "$LOG_FILE"
 
-# =============================================================
-# Reboot check
-# =============================================================
 write_log ""
 write_log "ℹ️  ESXi updates typically require a reboot."
-write_log "    Schedule maintenance window and reboot with: reboot"
-write_log "    Or use vCenter/vSphere for rolling updates in clustered environments."
+write_log "    Schedule a maintenance window before applying updates."
 
-# =============================================================
-# Done
-# =============================================================
 write_log ""
 write_separator
 write_log "✅ All done! Log saved to $LOG_FILE"
