@@ -1,56 +1,61 @@
 # =============================================================
 # network-check.ps1 - Network topology checker for Windows
-# Configure HOSTS below with your homelab devices
+# Reads hosts from common/hosts.conf
 # Repo: https://github.com/pawlisko80/system-update-automation
 # =============================================================
 
-$LogDir  = "$env:USERPROFILE\Documents\logs\network"
-$LogFile = "$LogDir\network-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+$ScriptsDir = "C:\scripts"
+$HostsConf  = "$ScriptsDir\common\hosts.conf"
+$LogDir     = "$env:USERPROFILE\Documents\logs\network"
+$LogFile    = "$LogDir\network-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 
-# =============================================================
-# Configuration - add your homelab hosts here
-# Format: @{IP="x.x.x.x"; Name="hostname"; Desc="description"}
-# =============================================================
-$Hosts = @(
-    @{IP="10.20.30.1";  Name="router";        Desc="OPNsense Router"},
-    @{IP="10.20.30.3";  Name="switch";        Desc="Core Switch"},
-    @{IP="10.20.30.30"; Name="nas";           Desc="QNAP NAS"},
-    @{IP="10.20.30.25"; Name="hdhomerun";     Desc="HDHomeRun Tuner"},
-    @{IP="10.20.30.33"; Name="homeassistant"; Desc="Home Assistant"},
-    @{IP="10.20.30.34"; Name="qbittorrent";   Desc="qBittorrent"},
-    @{IP="10.20.30.35"; Name="peanut";        Desc="PeaNUT UPS Monitor"}
-)
-
 function Write-Log     { param($m) $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"; $line = "[$ts] $m"; Write-Host $line; Add-Content $LogFile $line }
 function Write-Ok      { param($m) Write-Host "  OK  $m" -ForegroundColor Green;  Add-Content $LogFile "  OK  $m" }
-function Write-Warn    { param($m) Write-Host "  WRN $m" -ForegroundColor Yellow; Add-Content $LogFile "  WRN $m" }
 function Write-Crit    { param($m) Write-Host "  ERR $m" -ForegroundColor Red;    Add-Content $LogFile "  ERR $m" }
 function Write-Info    { param($m) Write-Host "  INF $m" -ForegroundColor Cyan;   Add-Content $LogFile "  INF $m" }
 function Write-Section { param($m) Write-Host ""; Write-Host "--- $m ---" -ForegroundColor Cyan; Add-Content $LogFile ""; Add-Content $LogFile "--- $m ---" }
 function Write-Sep     { $l = "=" * 60; Write-Host $l; Add-Content $LogFile $l }
 
+# Check hosts.conf exists
+if (-not (Test-Path $HostsConf)) {
+    Write-Host "ERROR: hosts.conf not found at $HostsConf" -ForegroundColor Red
+    Write-Host "Create it with format: IP|Name|Description"
+    Read-Host "Press ENTER to close"
+    exit 1
+}
+
 Write-Sep
 Write-Log "Network Topology Check - $(Get-Date)"
 Write-Log "From: $([System.Net.Dns]::GetHostName())"
+Write-Log "Config: $HostsConf"
 Write-Sep
 
 $UpCount   = 0
 $DownCount = 0
-$Total     = $Hosts.Count
+$Total     = 0
 
 # =============================================================
-# Ping all hosts
+# Parse hosts.conf and ping all hosts
 # =============================================================
 Write-Section "Homelab Hosts"
 Write-Host ("  {0,-18} {1,-20} {2,-25} {3}" -f "IP", "Name", "Description", "Status")
 Write-Host "  $("-" * 70)"
 
-$Hosts | ForEach-Object {
-    $ip   = $_.IP
-    $name = $_.Name
-    $desc = $_.Desc
+Get-Content $HostsConf | ForEach-Object {
+    $line = $_.Trim()
+    # Skip comments and empty lines
+    if ($line -match '^#' -or $line -eq '') { return }
+
+    $parts = $line -split '\|'
+    if ($parts.Count -lt 3) { return }
+
+    $ip   = $parts[0].Trim()
+    $name = $parts[1].Trim()
+    $desc = $parts[2].Trim()
+    $Total++
+
     $result = Test-Connection $ip -Count 1 -ErrorAction SilentlyContinue
     if ($result) {
         $latency = $result.ResponseTime
