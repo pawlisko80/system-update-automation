@@ -1,0 +1,76 @@
+#!/bin/sh
+# =============================================================
+# menu — Interactive maintenance menu for FreeBSD
+# Repo: https://github.com/pawlisko80/system-update-automation
+# =============================================================
+
+SCRIPTS_DIR=~/scripts
+COMMON=$SCRIPTS_DIR/common
+
+print_header() {
+    clear
+    INFO="$(hostname) | FreeBSD $(uname -r | cut -d- -f1)"
+    echo "  ╔══════════════════════════════════════════╗"
+    echo "  ║     System Maintenance Menu              ║"
+    printf "  ║     %-38s║\n" "$INFO"
+    echo "  ╚══════════════════════════════════════════╝"
+    echo ""
+}
+
+print_menu() {
+    print_header
+    echo "  ── Updates ──────────────────────────────"
+    echo "  1  Run FreeBSD update"
+    echo "  2  Self-update scripts from GitHub"
+    echo ""
+    echo "  ── Health & Security ────────────────────"
+    echo "  3  System health check"
+    echo "  4  Security audit"
+    echo "  5  System inventory"
+    echo ""
+    echo "  ── Network ──────────────────────────────"
+    echo "  6  Network topology check"
+    echo ""
+    echo "  ── Reports ──────────────────────────────"
+    echo "  7  Summarize update logs (30 days)"
+    echo ""
+    echo "  ── Upgrades ─────────────────────────────"
+    echo "  8  Major version upgrade"
+    echo ""
+    echo "  ────────────────────────────────────────"
+    echo "  9 / q  Quit"
+    echo ""
+    printf "  Choose an option: "
+}
+
+run_script() {
+    script="$1"
+    title="$2"
+    echo ""
+    echo "━━━ $title ━━━"
+    echo ""
+    if [ -f "$script" ]; then
+        "$script"
+    else
+        echo "Script not found: $script"
+        echo "Press ENTER to continue..."
+        read -r
+    fi
+}
+
+while true; do
+    print_menu
+    read -r choice
+    case "$choice" in
+        1) run_script "$SCRIPTS_DIR/freebsd/update-freebsd.sh" "FreeBSD Update" ;;
+        2) run_script "$SCRIPTS_DIR/self-update.sh" "Self-Update Scripts" ;;
+        3) run_script "$COMMON/check-health.sh" "System Health Check" ;;
+        4) run_script "$COMMON/security-check.sh" "Security Audit" ;;
+        5) run_script "$COMMON/inventory.sh" "System Inventory" ;;
+        6) run_script "$COMMON/network-check.sh" "Network Check" ;;
+        7) run_script "$COMMON/summarize-logs.sh" "Log Summary" ;;
+        8) run_script "$SCRIPTS_DIR/upgrade/upgrade-freebsd.sh" "FreeBSD Upgrade" ;;
+        9|q|Q) echo ""; echo "Goodbye!"; echo ""; exit 0 ;;
+        *) echo "  Invalid option"; sleep 1 ;;
+    esac
+done
