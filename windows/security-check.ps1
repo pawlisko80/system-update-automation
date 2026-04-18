@@ -107,7 +107,7 @@ try {
     Write-Info "Members of Administrators group:"
     $admins | ForEach-Object { Write-Info "  - $($_.Name) ($($_.ObjectClass))" }
     if ($admins.Count -gt 2) {
-        Write-Warn "More than 2 administrator accounts — verify all are expected"
+        Write-Warn "More than 2 administrator accounts - verify all are expected"
     } else {
         Write-Ok "Administrator account count looks normal: $($admins.Count)"
     }

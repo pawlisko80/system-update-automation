@@ -1,6 +1,6 @@
 #Requires -RunAsAdministrator
 # =============================================================
-# cleanup-windows.ps1 — Windows cleanup script
+# cleanup-windows.ps1 - Windows cleanup script
 # Covers: temp files, recycle bin, Windows Update cache,
 #         browser caches, Event Log, prefetch
 # Repo: https://github.com/pawlisko80/system-update-automation
@@ -47,7 +47,7 @@ function Remove-FolderContents {
             Remove-Item "$Path\*" -Recurse -Force -ErrorAction SilentlyContinue
             $sizeAfter = Get-FolderSize $Path
             $freed = $sizeBefore - $sizeAfter
-            Write-Log "Cleaned $Description — freed ${freed}MB"
+            Write-Log "Cleaned $Description - freed ${freed}MB"
         } catch {
             Write-Log "Partial clean of $Description (some files in use)"
         }

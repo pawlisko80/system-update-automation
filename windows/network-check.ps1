@@ -10,14 +10,13 @@ $LogFile = "$LogDir\network-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 
 # =============================================================
-# Configuration — add your homelab hosts here
+# Configuration - add your homelab hosts here
 # Format: @{IP="x.x.x.x"; Name="hostname"; Desc="description"}
 # =============================================================
 $Hosts = @(
     @{IP="10.20.30.1";  Name="router";        Desc="OPNsense Router"},
-    @{IP="10.20.30.2";  Name="switch";        Desc="Core Switch"},
-    @{IP="10.20.30.10"; Name="nas";           Desc="QNAP NAS"},
-    @{IP="10.20.30.20"; Name="proxmox";       Desc="Proxmox Hypervisor"},
+    @{IP="10.20.30.3";  Name="switch";        Desc="Core Switch"},
+    @{IP="10.20.30.30"; Name="nas";           Desc="QNAP NAS"},
     @{IP="10.20.30.25"; Name="hdhomerun";     Desc="HDHomeRun Tuner"},
     @{IP="10.20.30.33"; Name="homeassistant"; Desc="Home Assistant"},
     @{IP="10.20.30.34"; Name="qbittorrent";   Desc="qBittorrent"},

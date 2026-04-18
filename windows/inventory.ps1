@@ -61,8 +61,7 @@ Get-NetIPAddress | Where-Object { $_.AddressFamily -eq 'IPv4' -and $_.IPAddress 
 # Installed software
 Section "Installed Software (winget)"
 if (Get-Command winget -ErrorAction SilentlyContinue) {
-    $pkgs = winget list 2>/dev/null
-    $pkgs | ForEach-Object { w $_ }
+    winget list 2>$null | ForEach-Object { w $_ }
 } else {
     w "winget not available"
 }
@@ -70,7 +69,7 @@ if (Get-Command winget -ErrorAction SilentlyContinue) {
 # Chocolatey
 Section "Chocolatey Packages"
 if (Get-Command choco -ErrorAction SilentlyContinue) {
-    choco list 2>/dev/null | ForEach-Object { w $_ }
+    choco list 2>$null | ForEach-Object { w $_ }
 } else {
     w "Chocolatey not installed"
 }
@@ -85,7 +84,7 @@ Get-Service | Where-Object { $_.Status -eq 'Running' } |
 Section "Recent Logins"
 try {
     Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4624} -MaxEvents 10 -ErrorAction SilentlyContinue |
-        ForEach-Object {
+        Where-Object { $_.Properties[5].Value -ne "SYSTEM" -and $_.Properties[5].Value -ne "-" } | ForEach-Object {
             w "$($_.TimeCreated.ToString('yyyy-MM-dd HH:mm')) - $($_.Properties[5].Value)"
         }
 } catch {

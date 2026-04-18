@@ -74,7 +74,7 @@ else                 { Write-Ok $msg }
 # =============================================================
 Write-Section "Services"
 $failed = Get-Service | Where-Object { $_.Status -eq 'Stopped' -and $_.StartType -eq 'Automatic' } |
-    Where-Object { $_.Name -notmatch 'OneSyncSvc|CDPUserSvc|WpnUserService|PrintWorkflow|cbdhsvc' }
+    Where-Object { $_.Name -notmatch 'OneSyncSvc|CDPUserSvc|WpnUserService|PrintWorkflow|cbdhsvc|edgeupdate|MapsBroker|sppsvc|gupdate|MicrosoftEdgeElevationService' }
 if ($failed.Count -gt 0) {
     Write-Warn "$($failed.Count) automatic service(s) not running:"
     $failed | ForEach-Object { Write-Info "  - $($_.Name) ($($_.DisplayName))" }
