@@ -5,17 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.4.0] - 2026-04-17
+
+### Added
+- `common/check-health.sh` — cross-platform health check (disk, memory, CPU, services, SMART, network)
+- `common/notify.sh` — notification support for Slack, Discord, ntfy.sh, Pushover, and email
+- `common/summarize-logs.sh` — parse update/health logs and generate 30-day activity report
+- `common/inventory.sh` — full system inventory (hardware, OS, packages, services, network, security)
+- `common/security-check.sh` — security audit (failed logins, open ports, firewall, SSH config, secrets scan)
+- `common/network-check.sh` — homelab network topology checker (ping all known hosts, DNS, latency)
+- `windows/cleanup-windows.ps1` — Windows cleanup (temp files, recycle bin, Update cache, browser caches)
+
+---
+
 ## [1.3.0] - 2026-04-17
 
 ### Added
 - Major version upgrade scripts: `upgrade/upgrade-debian.sh`, `upgrade/upgrade-rhel.sh`, `upgrade/upgrade-freebsd.sh`, `upgrade/upgrade-alpine.sh`
-- `docs/UPGRADE-GUIDE.md` — comprehensive pre-upgrade checklist, recovery steps, version paths for all platforms
-- Self-update interval check in `update-mac` and `update-windows.ps1` — prompts every 7 days (configurable) to pull latest scripts from GitHub
+- `docs/UPGRADE-GUIDE.md` — comprehensive pre-upgrade checklist, recovery steps, version paths
+- Self-update interval check in `update-mac` and `update-windows.ps1` — prompts every 7 days (configurable)
 - `self-update.sh` — Mac/Linux self-updater with local change detection and backup
 - `windows/self-update.ps1` — Windows self-updater with local change detection and backup
+- `CHANGELOG.md` — full version history
+- Comprehensive `README.md` with all platforms, install instructions, and usage
 
 ### Changed
-- `update-mac` — added macOS/Homebrew version checks, requirement validation, self-update interval logic
+- `update-mac` — added macOS/Homebrew version checks, self-update interval logic
 - `update-windows.ps1` — added self-update interval logic, ARM64 architecture detection
 
 ---
@@ -23,16 +38,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.2.0] - 2026-04-17
 
 ### Added
-- Version checks and error handling to all platform scripts
-- `docs/VERSION-REQUIREMENTS.md` — minimum supported versions for all 19 platforms
-- Version checks added to: `update-debian.sh`, `update-rhel.sh`, `update-freebsd.sh`, `update-raspi.sh`, `update-proxmox.sh`, `update-opnsense.sh`, `update-qnap.sh`, `update-synology.sh`, `update-unraid.sh`, `update-truenas.sh`, `update-pfsense.sh`, `update-esxi.sh`, `update-openwrt.sh`, `update-ddwrt.sh`, `update-arch.sh`, `update-alpine.sh`, `update-linux.sh`
+- Version checks and error handling to all 19 platform scripts
+- `docs/VERSION-REQUIREMENTS.md` — minimum supported versions for all platforms
 
 ### Fixed
-- FreeBSD: portsnap deprecated in FreeBSD 14+ — now uses git for ports tree
+- FreeBSD: portsnap deprecated in 14+ — now uses git for ports tree
 - Raspberry Pi: rpi-eeprom only invoked on Pi 4/5 (model auto-detected)
-- QNAP: log directory falls back to /tmp if /share/homes/admin unavailable
-- Synology: log directory falls back to /tmp if /volume1/homes/admin unavailable
-- Unraid: log directory falls back to /tmp if /boot/logs unavailable
+- QNAP/Synology/Unraid: log directory falls back to /tmp if primary path unavailable
 
 ---
 
@@ -40,42 +52,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - Router scripts: `router/update-openwrt.sh`, `router/update-ddwrt.sh`
-- Linux distro-specific scripts: `linux/debian/update-debian.sh`, `linux/arch/update-arch.sh`, `linux/rhel/update-rhel.sh`, `linux/alpine/update-alpine.sh`
-- Universal installer `install.sh` — auto-detects OS and sets up correct script + PATH
-- `common/utils.sh` — shared utility functions (logging, Docker helpers, SMART health, reboot check)
-- `docs/WINDOWS-SETUP.md` — Windows prerequisites and setup guide
+- Linux distro-specific scripts: Debian, Arch, RHEL, Alpine
+- Universal installer `install.sh` — auto-detects OS
+- `common/utils.sh` — shared utility functions
+- `docs/WINDOWS-SETUP.md`
 
 ### Changed
 - Repo renamed from `mac-update-automation` to `system-update-automation`
-- Restructured folders: `mac/`, `windows/`, `linux/`, `nas/`, `firewall/`, `router/`, `hypervisor/`, `common/`, `docs/`
+- Restructured into platform folders
 
 ---
 
 ## [1.0.0] - 2026-03-27
 
 ### Added
-- `mac/update-mac` — macOS maintenance script (Homebrew, mas, macOS updates, manual reminders)
-- `windows/update-windows.ps1` — Windows maintenance script
-  - winget package upgrades
-  - Microsoft Store updates
-  - Chocolatey upgrades
-  - Windows Update via native COM API (ARM64 compatible)
-  - ARM64 vs AMD64/x86 auto-detection
-  - Microsoft Edge pinned in winget on ARM64 (installer technology mismatch)
-- `linux/update-linux.sh` — Generic Linux script (apt/dnf/pacman/zypper auto-detected)
-- `raspios/update-raspi.sh` — Raspberry Pi OS (apt, rpi-update, rpi-eeprom)
-- `freebsd/update-freebsd.sh` — FreeBSD (freebsd-update, pkg, ports)
-- NAS scripts: `nas/update-qnap.sh`, `nas/update-synology.sh`, `nas/update-unraid.sh`, `nas/update-truenas.sh`
-- Firewall scripts: `firewall/update-opnsense.sh`, `firewall/update-pfsense.sh`
-- Hypervisor scripts: `hypervisor/update-proxmox.sh`, `hypervisor/update-esxi.sh`
-- `docs/HOMEBREW-APPS.md` — complete list of Homebrew-managed apps
-- `README.md` — full documentation
-
-### Notes
-- Windows ARM64: PSWindowsUpdate broken — replaced with native COM API
-- Windows ARM64: Microsoft Edge excluded from winget (uses Microsoft AutoUpdate instead)
-- macOS: fuse-t used instead of macFUSE for VeraCrypt on Apple Silicon
-- macOS: All apps migrated from DMG installs to Homebrew casks
+- `mac/update-mac` — macOS maintenance (Homebrew, mas, macOS updates)
+- `windows/update-windows.ps1` — Windows maintenance (winget, Chocolatey, Windows Update)
+  - ARM64 vs AMD64 auto-detection
+  - Native COM API for Windows Update (ARM64 compatible)
+  - Microsoft Edge pinned in winget on ARM64
+- `linux/update-linux.sh` — Generic Linux (apt/dnf/pacman/zypper auto-detected)
+- `raspios/update-raspi.sh` — Raspberry Pi OS
+- `freebsd/update-freebsd.sh` — FreeBSD
+- NAS scripts: QNAP, Synology, Unraid, TrueNAS
+- Firewall scripts: OPNsense, pfSense
+- Hypervisor scripts: Proxmox VE, ESXi
+- `docs/HOMEBREW-APPS.md`
 
 ---
 
@@ -83,9 +85,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 | Platform | Issue | Status |
 |---|---|---|
-| MakeMKV | Homebrew cask deprecated Sept 2026 (Gatekeeper) | Manual update after deprecation |
-| VMware Fusion | Homebrew cask disabled (requires Broadcom login) | Manual download from broadcom.com |
-| Samsung Magician | `installer manual` cask — brew cannot auto-upgrade | Open app to check for updates |
+| MakeMKV | Homebrew cask deprecated Sept 2026 | Manual update after deprecation |
+| VMware Fusion | Homebrew cask disabled (Broadcom login) | Manual download from broadcom.com |
+| Samsung Magician | installer manual cask | Open app to check for updates |
 | DD-WRT | Logs in /tmp (RAM) — lost on reboot | Mount USB for persistence |
-| ESXi | Online depot requires ESXi internet access | Often blocked in enterprise |
+| ESXi | Online depot requires internet access | Often blocked in enterprise |
 | CentOS 7 | Uses yum not dnf — not supported | Migrate to Rocky/AlmaLinux |
