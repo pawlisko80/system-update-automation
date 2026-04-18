@@ -1,0 +1,115 @@
+#!/bin/zsh
+# =============================================================
+# menu.sh — Interactive maintenance menu for macOS
+# Repo: https://github.com/pawlisko80/system-update-automation
+# =============================================================
+
+SCRIPTS_DIR=~/scripts
+COMMON=$SCRIPTS_DIR/common
+
+# Colors
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+clear_screen() { clear; }
+
+print_header() {
+    clear_screen
+    echo -e "${CYAN}${BOLD}"
+    echo "  ╔══════════════════════════════════════════╗"
+    echo "  ║     System Maintenance Menu              ║"
+    echo "  ║     $(hostname) — macOS $(sw_vers -productVersion)          ║"
+    echo "  ╚══════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
+
+print_menu() {
+    print_header
+    echo -e "  ${BOLD}── Updates ──────────────────────────────${NC}"
+    echo -e "  ${GREEN}1${NC}  🍺  Run full system update"
+    echo -e "  ${GREEN}2${NC}  🔄  Self-update scripts from GitHub"
+    echo ""
+    echo -e "  ${BOLD}── Health & Security ────────────────────${NC}"
+    echo -e "  ${GREEN}3${NC}  💚  System health check"
+    echo -e "  ${GREEN}4${NC}  🔒  Security audit"
+    echo -e "  ${GREEN}5${NC}  📋  System inventory"
+    echo ""
+    echo -e "  ${BOLD}── Network ──────────────────────────────${NC}"
+    echo -e "  ${GREEN}6${NC}  🌐  Network topology check"
+    echo ""
+    echo -e "  ${BOLD}── Reports ──────────────────────────────${NC}"
+    echo -e "  ${GREEN}7${NC}  📊  Summarize update logs (30 days)"
+    echo ""
+    echo -e "  ${BOLD}── Upgrades ─────────────────────────────${NC}"
+    echo -e "  ${GREEN}8${NC}  ⬆️   Major version upgrade (read guide first)"
+    echo ""
+    echo -e "  ${BOLD}────────────────────────────────────────${NC}"
+    echo -e "  ${RED}q${NC}  Quit"
+    echo ""
+    echo -ne "  ${BOLD}Choose an option: ${NC}"
+}
+
+run_script() {
+    local script="$1"
+    local title="$2"
+    echo ""
+    echo -e "${CYAN}━━━ $title ━━━${NC}"
+    echo ""
+    if [ -f "$script" ]; then
+        "$script"
+    else
+        echo -e "${RED}Script not found: $script${NC}"
+        echo "Press ENTER to continue..."
+        read
+    fi
+}
+
+upgrade_menu() {
+    print_header
+    echo -e "  ${BOLD}── Major Version Upgrade ────────────────${NC}"
+    echo -e "  ${YELLOW}⚠️  Read docs/UPGRADE-GUIDE.md before proceeding${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}  Debian / Ubuntu"
+    echo -e "  ${GREEN}2${NC}  RHEL / Fedora / Rocky / Alma"
+    echo -e "  ${GREEN}3${NC}  FreeBSD"
+    echo -e "  ${GREEN}4${NC}  Alpine Linux"
+    echo -e "  ${GREEN}5${NC}  View UPGRADE-GUIDE.md"
+    echo ""
+    echo -e "  ${RED}b${NC}  Back"
+    echo ""
+    echo -ne "  ${BOLD}Choose: ${NC}"
+    read choice
+    case "$choice" in
+        1) run_script "$SCRIPTS_DIR/upgrade/upgrade-debian.sh" "Debian/Ubuntu Upgrade" ;;
+        2) run_script "$SCRIPTS_DIR/upgrade/upgrade-rhel.sh" "RHEL/Fedora Upgrade" ;;
+        3) run_script "$SCRIPTS_DIR/upgrade/upgrade-freebsd.sh" "FreeBSD Upgrade" ;;
+        4) run_script "$SCRIPTS_DIR/upgrade/upgrade-alpine.sh" "Alpine Upgrade" ;;
+        5) less "$SCRIPTS_DIR/docs/UPGRADE-GUIDE.md" 2>/dev/null || cat "$SCRIPTS_DIR/docs/UPGRADE-GUIDE.md" ;;
+        b|B) return ;;
+    esac
+}
+
+# =============================================================
+# Main loop
+# =============================================================
+while true; do
+    print_menu
+    read choice
+    case "$choice" in
+        1) run_script "$SCRIPTS_DIR/mac/update-mac" "Full System Update" ;;
+        2) run_script "$SCRIPTS_DIR/self-update.sh" "Self-Update Scripts" ;;
+        3) run_script "$COMMON/check-health.sh" "System Health Check" ;;
+        4) run_script "$COMMON/security-check.sh" "Security Audit" ;;
+        5) run_script "$COMMON/inventory.sh" "System Inventory" ;;
+        6) run_script "$COMMON/network-check.sh" "Network Check" ;;
+        7) run_script "$COMMON/summarize-logs.sh" "Log Summary" ;;
+        8) upgrade_menu ;;
+        q|Q) echo ""; echo "Goodbye!"; echo ""; exit 0 ;;
+        *) echo -e "\n  ${RED}Invalid option${NC}" ; sleep 1 ;;
+    esac
+done
