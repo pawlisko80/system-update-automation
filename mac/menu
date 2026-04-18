@@ -107,7 +107,7 @@ while true; do
         6) run_script "$COMMON/network-check.sh" "Network Check" ;;
         7) run_script "$COMMON/summarize-logs.sh" "Log Summary" ;;
         8) upgrade_menu ;;
-        q|Q) echo ""; echo "Goodbye!"; echo ""; exit 0 ;;
+        9|q|Q) echo ""; echo "Goodbye!"; echo ""; exit 0 ;;
         *) echo -e "\n  ${RED}Invalid option${NC}"; sleep 1 ;;
     esac
 done
