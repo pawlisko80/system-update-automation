@@ -20,7 +20,7 @@ print_header() {
     SHORT_HOST=$(hostname | cut -d. -f1)
     MACOS_VER=$(sw_vers -productVersion)
     INFO="$SHORT_HOST | macOS $MACOS_VER"
-    PAD=$(printf '%*s' $((42 - ${#INFO})) '')
+    PAD=$(printf "%*s" $((37 - ${#INFO})) "")
     echo -e "${CYAN}${BOLD}"
     echo "  ╔══════════════════════════════════════════╗"
     echo "  ║     System Maintenance Menu              ║"
