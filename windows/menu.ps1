@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # menu.ps1 - Interactive maintenance menu for Windows
 # Repo: https://github.com/pawlisko80/system-update-automation
 # =============================================================
@@ -12,15 +12,13 @@ function Write-Header {
     $osVer    = (Get-CimInstance Win32_OperatingSystem).Caption -replace "Microsoft Windows ", "Win "
     $arch     = $env:PROCESSOR_ARCHITECTURE
     $info     = "$hostName | $osVer | $arch"
-    $interior = 45
-    if ($info.Length -gt ($interior - 6)) { $info = $info.Substring(0, $interior - 6) }
-    $pad      = " " * [math]::Max(0, ($interior - 5 - $info.Length))
-    $border   = "+" + ("=" * $interior) + "+"
+    $pad = " " * [math]::Max(0, ($borderInner - 5 - $info.Length))
+    $b        = "+=============================================+"
     Write-Host ""
-    Write-Host "  $border" -ForegroundColor Cyan
-    Write-Host "  |     System Maintenance Menu               |" -ForegroundColor Cyan
+    Write-Host "  $b" -ForegroundColor Cyan
+    Write-Host "  |     System Maintenance Menu                 |" -ForegroundColor Cyan
     Write-Host "  |     $info$pad|" -ForegroundColor Cyan
-    Write-Host "  $border" -ForegroundColor Cyan
+    Write-Host "  $b" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -99,3 +97,9 @@ while ($true) {
         default { Write-Host ""; Write-Host "  Invalid option" -ForegroundColor Red; Start-Sleep -Seconds 1 }
     }
 }
+
+
+
+
+
+
