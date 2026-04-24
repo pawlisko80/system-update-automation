@@ -1,4 +1,10 @@
-﻿# =============================================================
+# Auto-elevate to Administrator if not already
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $pwsh = if (Test-Path "$env:ProgramFiles\PowerShell\7\pwsh.exe") { "$env:ProgramFiles\PowerShell\7\pwsh.exe" } else { "powershell.exe" }
+    Start-Process $pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
+# =============================================================
 # menu.ps1 - Interactive maintenance menu for Windows
 # Repo: https://github.com/pawlisko80/system-update-automation
 # =============================================================
@@ -12,6 +18,7 @@ function Write-Header {
     $osVer    = (Get-CimInstance Win32_OperatingSystem).Caption -replace "Microsoft Windows ", "Win "
     $arch     = $env:PROCESSOR_ARCHITECTURE
     $info     = "$hostName | $osVer | $arch"
+    $borderInner = 45
     $pad = " " * [math]::Max(0, ($borderInner - 5 - $info.Length))
     $b        = "+=============================================+"
     Write-Host ""
@@ -97,6 +104,9 @@ while ($true) {
         default { Write-Host ""; Write-Host "  Invalid option" -ForegroundColor Red; Start-Sleep -Seconds 1 }
     }
 }
+
+
+
 
 
 
