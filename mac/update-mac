@@ -191,6 +191,9 @@ if ls /Applications | grep -q "Microsoft Word"; then
 fi
 
 echo "" | tee -a $LOG
+if ! command -v smartctl &>/dev/null; then
+    echo "⚪ smartmontools — not installed (brew install smartmontools)" | tee -a $LOG
+fi
 echo "✅ All done! Log saved to $LOG" | tee -a $LOG
 echo "Press RETURN to close..."
 read

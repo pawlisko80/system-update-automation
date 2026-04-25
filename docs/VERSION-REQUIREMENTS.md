@@ -73,3 +73,10 @@ Minimum supported versions for each platform script.
 - **ESXi**: Online depot update requires ESXi internet access — often blocked in enterprise
 - **ARM64 Windows**: PSWindowsUpdate broken — native COM API used instead
 - **macOS < 12**: Homebrew 3.0+ requires macOS 12+
+
+## Optional Dependencies
+
+| Tool | Platform | Install | Purpose |
+|---|---|---|---|
+| smartmontools | macOS / Linux | `brew install smartmontools` / `apt install smartmontools` | Disk SMART health checks in check-health.sh |
+| mas | macOS | `brew install mas` | App Store updates in update-mac |
