@@ -1,0 +1,84 @@
+#!/bin/bash
+# =============================================================
+# menu - Interactive maintenance menu for ChromeOS (Crostini)
+# Repo: https://github.com/pawlisko80/system-update-automation
+# =============================================================
+
+SCRIPTS_DIR=~/scripts
+COMMON=$SCRIPTS_DIR/common
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_header() {
+    clear
+    HOSTNAME=$(hostname)
+    DEBIAN_VER=$(cat /etc/debian_version 2>/dev/null || echo "unknown")
+    INFO="$HOSTNAME | ChromeOS Linux | Debian $DEBIAN_VER"
+    if [ ${#INFO} -gt 37 ]; then INFO="${INFO:0:37}"; fi
+    PAD=$(printf "%*s" $((37 - ${#INFO})) "")
+    echo -e "${CYAN}${BOLD}"
+    echo "  +==========================================+"
+    echo "  |     System Maintenance Menu              |"
+    echo "  |     ${INFO}${PAD}|"
+    echo "  +==========================================+"
+    echo -e "${NC}"
+}
+
+print_menu() {
+    print_header
+    echo -e "  ${BOLD}-- Updates --------------------------------------${NC}"
+    echo -e "  ${GREEN}1${NC}  Run ChromeOS Linux update"
+    echo -e "  ${GREEN}2${NC}  Self-update scripts from GitHub"
+    echo ""
+    echo -e "  ${BOLD}-- Health and Security --------------------------${NC}"
+    echo -e "  ${GREEN}3${NC}  System health check"
+    echo -e "  ${GREEN}4${NC}  Security audit"
+    echo -e "  ${GREEN}5${NC}  System inventory"
+    echo ""
+    echo -e "  ${BOLD}-- Network --------------------------------------${NC}"
+    echo -e "  ${GREEN}6${NC}  Network topology check"
+    echo ""
+    echo -e "  ${BOLD}-- Reports --------------------------------------${NC}"
+    echo -e "  ${GREEN}7${NC}  Summarize update logs (30 days)"
+    echo ""
+    echo -e "  ${BOLD}-------------------------------------------------${NC}"
+    echo -e "  ${RED}9${NC}  /  ${RED}q${NC}  Quit"
+    echo ""
+    echo -ne "  ${BOLD}Choose an option: ${NC}"
+}
+
+run_script() {
+    local script="$1"
+    local title="$2"
+    echo ""
+    echo -e "${CYAN}--- $title ---${NC}"
+    echo ""
+    if [ -f "$script" ]; then
+        "$script"
+    else
+        echo -e "${RED}Script not found: $script${NC}"
+        echo "Press ENTER to continue..."
+        read -r
+    fi
+}
+
+while true; do
+    print_menu
+    read -r choice
+    case "$choice" in
+        1) run_script "$SCRIPTS_DIR/chromeos/update-chromeos.sh" "ChromeOS Linux Update" ;;
+        2) run_script "$SCRIPTS_DIR/self-update.sh" "Self-Update Scripts" ;;
+        3) run_script "$COMMON/check-health.sh" "System Health Check" ;;
+        4) run_script "$COMMON/security-check.sh" "Security Audit" ;;
+        5) run_script "$COMMON/inventory.sh" "System Inventory" ;;
+        6) run_script "$COMMON/network-check.sh" "Network Check" ;;
+        7) run_script "$COMMON/summarize-logs.sh" "Log Summary" ;;
+        9|q|Q) echo ""; echo "Goodbye!"; echo ""; exit 0 ;;
+        *) echo -e "\n  ${RED}Invalid option${NC}"; sleep 1 ;;
+    esac
+done
