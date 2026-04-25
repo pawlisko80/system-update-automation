@@ -9,7 +9,7 @@
 # Configuration
 DISK_WARN_PERCENT=80
 DISK_CRIT_PERCENT=90
-LOG_DIR="$HOME/logs/health"
+LOG_DIR="$HOME/Documents/logs/health"
 LOG_FILE="$LOG_DIR/health-$(date +%Y%m%d-%H%M%S).log"
 ISSUES=0
 
@@ -46,7 +46,7 @@ uptime | tee -a "$LOG_FILE"
 # =============================================================
 section "Disk Usage"
 if [ "$OS" = "Darwin" ]; then
-    df -H | grep -v "^Filesystem\|^map\|^devfs" | while read -r line; do
+    df -H 2>/dev/null | grep -v "^Filesystem\|^map\|^devfs\|timemachine\|TimeMachine\|Wrapper\|localsnapshot" | while read -r line; do
         usage=$(echo "$line" | awk '{print $5}' | tr -d '%')
         mount=$(echo "$line" | awk '{print $9}')
         size=$(echo "$line" | awk '{print $2}')

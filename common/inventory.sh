@@ -54,7 +54,7 @@ w "Uptime: $(uptime | sed 's/.*up //' | sed 's/,.*//')"
 # Disk
 # =============================================================
 section "Disk"
-df -h | grep -v "^tmpfs\|^devtmpfs\|^udev\|^map\|^devfs" | tee -a "$REPORT_FILE"
+df -h 2>/dev/null | grep -v "^tmpfs\|^devtmpfs\|^udev\|^map\|^devfs\|timemachine\|TimeMachine\|Wrapper\|localsnapshot" | tee -a "$REPORT_FILE"
 
 # =============================================================
 # Network

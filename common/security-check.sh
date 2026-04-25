@@ -6,7 +6,7 @@
 # Repo: https://github.com/pawlisko80/system-update-automation
 # =============================================================
 
-LOG_DIR="$HOME/logs/security"
+LOG_DIR="$HOME/Documents/logs/security"
 LOG_FILE="$LOG_DIR/security-$(date +%Y%m%d-%H%M%S).log"
 ISSUES=0
 mkdir -p "$LOG_DIR"

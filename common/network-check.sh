@@ -8,7 +8,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTS_CONF="$SCRIPT_DIR/hosts.conf"
 
-LOG_DIR="$HOME/logs/network"
+LOG_DIR="$HOME/Documents/logs/network"
 LOG_FILE="$LOG_DIR/network-$(date +%Y%m%d-%H%M%S).log"
 mkdir -p "$LOG_DIR"
 
