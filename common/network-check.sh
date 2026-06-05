@@ -7,9 +7,14 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTS_CONF="$SCRIPT_DIR/hosts.conf"
-
 LOG_DIR="$HOME/Documents/logs/network"
 LOG_FILE="$LOG_DIR/network-$(date +%Y%m%d-%H%M%S).log"
+
+# Load local config and MQTT helpers
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ -f "$SCRIPTS_DIR/.env.local" ] && source "$SCRIPTS_DIR/.env.local"
+[ -f "$SCRIPTS_DIR/common/mqtt-common.sh" ] && source "$SCRIPTS_DIR/common/mqtt-common.sh"
+
 mkdir -p "$LOG_DIR"
 
 TIMEOUT=2
@@ -27,10 +32,8 @@ write_info()   { echo -e "${BLUE}  INF $1${NC}" | tee -a "$LOG_FILE"; }
 write_section(){ echo "" | tee -a "$LOG_FILE"; echo "--- $1 ---" | tee -a "$LOG_FILE"; }
 write_sep()    { echo "============================================================" | tee -a "$LOG_FILE"; }
 
-# Check hosts.conf exists
 if [ ! -f "$HOSTS_CONF" ]; then
     echo "ERROR: hosts.conf not found at $HOSTS_CONF"
-    echo "Create it with format: IP|Name|Description"
     exit 1
 fi
 
@@ -43,6 +46,7 @@ write_sep
 TOTAL=0
 UP_COUNT=0
 DOWN_COUNT=0
+DOWN_HOSTS=""
 
 # =============================================================
 # Ping all hosts from hosts.conf
@@ -52,10 +56,11 @@ printf "  %-18s %-20s %-25s %s\n" "IP" "Name" "Description" "Status" | tee -a "$
 echo "  $(printf '%.0s-' {1..70})" | tee -a "$LOG_FILE"
 
 while IFS='|' read -r ip name desc; do
-    # Skip comments and empty lines
     [[ "$ip" =~ ^#.*$ ]] && continue
     [[ -z "$ip" ]] && continue
-
+    ip=$(echo "$ip" | tr -d ' ')
+    name=$(echo "$name" | tr -d ' ')
+    desc=$(echo "$desc" | tr -d ' ')
     TOTAL=$((TOTAL+1))
 
     if ping -c $COUNT -W $TIMEOUT "$ip" &>/dev/null 2>&1; then
@@ -63,10 +68,14 @@ while IFS='|' read -r ip name desc; do
         printf "  %-18s %-20s %-25s " "$ip" "$name" "$desc" | tee -a "$LOG_FILE"
         echo -e "${GREEN}UP${NC} (${LATENCY}ms)" | tee -a "$LOG_FILE"
         UP_COUNT=$((UP_COUNT+1))
+        # Publish per-host status to MQTT
+        mqtt_publish "network/host/$name" "up"
     else
         printf "  %-18s %-20s %-25s " "$ip" "$name" "$desc" | tee -a "$LOG_FILE"
         echo -e "${RED}DOWN${NC}" | tee -a "$LOG_FILE"
         DOWN_COUNT=$((DOWN_COUNT+1))
+        DOWN_HOSTS="$DOWN_HOSTS $name"
+        mqtt_publish "network/host/$name" "down"
     fi
 done < "$HOSTS_CONF"
 
@@ -98,7 +107,7 @@ for target in "8.8.8.8|Google DNS" "1.1.1.1|Cloudflare DNS" "9.9.9.9|Quad9 DNS";
 done
 
 # =============================================================
-# Summary
+# Summary + MQTT reporting
 # =============================================================
 echo "" | tee -a "$LOG_FILE"
 write_sep
@@ -106,10 +115,16 @@ write_log "Results: $UP_COUNT/$TOTAL hosts up, $DOWN_COUNT down"
 if [ "$DOWN_COUNT" -eq 0 ]; then
     write_ok "All hosts reachable"
 else
-    write_crit "$DOWN_COUNT host(s) unreachable"
+    write_crit "$DOWN_COUNT host(s) unreachable:$DOWN_HOSTS"
 fi
 write_log "Log saved to $LOG_FILE"
 write_sep
+
+# Publish summary to MQTT
+SUMMARY="$UP_COUNT/$TOTAL up"
+[ "$DOWN_COUNT" -gt 0 ] && SUMMARY="$SUMMARY, down:$DOWN_HOSTS"
+mqtt_report_network "$UP_COUNT" "$TOTAL" "$SUMMARY"
+
 echo ""
 echo "Press ENTER to close..."
 read -r

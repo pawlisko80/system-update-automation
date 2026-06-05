@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
-# check-health.sh — System health check script
-# Covers: disk, memory, CPU, services, SMART, uptime
+# check-health.sh - System health check script
+# Covers: disk, memory, CPU, services, SMART, network
 # Platforms: Linux, macOS, FreeBSD
 # Repo: https://github.com/pawlisko80/system-update-automation
 # =============================================================
@@ -13,6 +13,11 @@ LOG_DIR="$HOME/Documents/logs/health"
 LOG_FILE="$LOG_DIR/health-$(date +%Y%m%d-%H%M%S).log"
 ISSUES=0
 
+# Load local config and MQTT helpers
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ -f "$SCRIPTS_DIR/.env.local" ] && source "$SCRIPTS_DIR/.env.local"
+[ -f "$SCRIPTS_DIR/common/mqtt-common.sh" ] && source "$SCRIPTS_DIR/common/mqtt-common.sh"
+
 mkdir -p "$LOG_DIR"
 
 # Colors
@@ -22,16 +27,22 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-ok()   { echo -e "${GREEN}  ✅ $1${NC}" | tee -a "$LOG_FILE"; }
-warn() { echo -e "${YELLOW}  ⚠️  $1${NC}" | tee -a "$LOG_FILE"; ISSUES=$((ISSUES+1)); }
-crit() { echo -e "${RED}  ❌ $1${NC}" | tee -a "$LOG_FILE"; ISSUES=$((ISSUES+1)); }
-info() { echo -e "${BLUE}  ℹ️  $1${NC}" | tee -a "$LOG_FILE"; }
-section() { echo "" | tee -a "$LOG_FILE"; echo -e "${BLUE}━━━ $1 ━━━${NC}" | tee -a "$LOG_FILE"; }
+ok()      { echo -e "${GREEN}  OK  $1${NC}" | tee -a "$LOG_FILE"; }
+warn()    { echo -e "${YELLOW}  WRN $1${NC}" | tee -a "$LOG_FILE"; ISSUES=$((ISSUES+1)); }
+crit()    { echo -e "${RED}  ERR $1${NC}" | tee -a "$LOG_FILE"; ISSUES=$((ISSUES+1)); }
+info()    { echo -e "${BLUE}  INF $1${NC}" | tee -a "$LOG_FILE"; }
+section() { echo "" | tee -a "$LOG_FILE"; echo -e "${BLUE}--- $1 ---${NC}" | tee -a "$LOG_FILE"; }
 
 OS=$(uname -s)
 
+# Metrics to collect for MQTT
+DISK_ROOT_PCT=0
+DISK_DATA_PCT=0
+MEM_PCT=0
+CPU_LOAD=0
+
 echo "============================================================" | tee -a "$LOG_FILE"
-echo "  System Health Check — $(date)" | tee -a "$LOG_FILE"
+echo "  System Health Check - $(date)" | tee -a "$LOG_FILE"
 echo "  Host: $(hostname) | OS: $OS $(uname -r)" | tee -a "$LOG_FILE"
 echo "============================================================" | tee -a "$LOG_FILE"
 
@@ -52,13 +63,15 @@ if [ "$OS" = "Darwin" ]; then
         size=$(echo "$line" | awk '{print $2}')
         used=$(echo "$line" | awk '{print $3}')
         if [ -n "$usage" ] && [ "$usage" -ge "$DISK_CRIT_PERCENT" ] 2>/dev/null; then
-            crit "CRITICAL: $mount — ${usage}% used ($used of $size)"
+            crit "CRITICAL: $mount - ${usage}% used ($used of $size)"
         elif [ -n "$usage" ] && [ "$usage" -ge "$DISK_WARN_PERCENT" ] 2>/dev/null; then
-            warn "WARNING: $mount — ${usage}% used ($used of $size)"
-        else
-            ok "$mount — ${usage}% used ($used of $size)"
+            warn "WARNING: $mount - ${usage}% used ($used of $size)"
+        elif [ -n "$usage" ]; then
+            ok "$mount - ${usage}% used ($used of $size)"
         fi
     done
+    DISK_ROOT_PCT=$(df -H / 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')
+    DISK_DATA_PCT=$(df -H /System/Volumes/Data 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')
 else
     df -h | grep -v "^Filesystem\|^tmpfs\|^devtmpfs\|^udev" | tail -n +2 | while read -r line; do
         usage=$(echo "$line" | awk '{print $5}' | tr -d '%')
@@ -66,13 +79,14 @@ else
         size=$(echo "$line" | awk '{print $2}')
         used=$(echo "$line" | awk '{print $3}')
         if [ -n "$usage" ] && [ "$usage" -ge "$DISK_CRIT_PERCENT" ] 2>/dev/null; then
-            crit "CRITICAL: $mount — ${usage}% used ($used of $size)"
+            crit "CRITICAL: $mount - ${usage}% used ($used of $size)"
         elif [ -n "$usage" ] && [ "$usage" -ge "$DISK_WARN_PERCENT" ] 2>/dev/null; then
-            warn "WARNING: $mount — ${usage}% used ($used of $size)"
-        else
-            ok "$mount — ${usage}% used ($used of $size)"
+            warn "WARNING: $mount - ${usage}% used ($used of $size)"
+        elif [ -n "$usage" ]; then
+            ok "$mount - ${usage}% used ($used of $size)"
         fi
     done
+    DISK_ROOT_PCT=$(df -h / 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')
 fi
 
 # =============================================================
@@ -91,18 +105,18 @@ if [ "$OS" = "Darwin" ]; then
             *) info "Memory pressure: $pressure" ;;
         esac
     fi
+    MEM_PCT=$(memory_pressure 2>/dev/null | grep "Pages free" | awk '{print $NF}' || echo 0)
 elif [ "$OS" = "FreeBSD" ]; then
     vmstat -s | grep -E "pages free|pages active" | tee -a "$LOG_FILE"
 else
     free -h | tee -a "$LOG_FILE"
-    # Check if memory usage > 90%
-    mem_used=$(free | awk 'NR==2{printf "%.0f", $3/$2*100}')
-    if [ "$mem_used" -ge 90 ] 2>/dev/null; then
-        crit "Memory usage: ${mem_used}%"
-    elif [ "$mem_used" -ge 75 ] 2>/dev/null; then
-        warn "Memory usage: ${mem_used}%"
+    MEM_PCT=$(free | awk 'NR==2{printf "%.0f", $3/$2*100}')
+    if [ "$MEM_PCT" -ge 90 ] 2>/dev/null; then
+        crit "Memory usage: ${MEM_PCT}%"
+    elif [ "$MEM_PCT" -ge 75 ] 2>/dev/null; then
+        warn "Memory usage: ${MEM_PCT}%"
     else
-        ok "Memory usage: ${mem_used}%"
+        ok "Memory usage: ${MEM_PCT}%"
     fi
 fi
 
@@ -112,17 +126,17 @@ fi
 section "CPU Load"
 if [ "$OS" = "Darwin" ]; then
     CPU_CORES=$(sysctl -n hw.ncpu)
-    LOAD=$(sysctl -n vm.loadavg | awk '{print $2}')
+    CPU_LOAD=$(sysctl -n vm.loadavg | awk '{print $2}')
 else
     CPU_CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1)
-    LOAD=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $1}' | tr -d ' ')
+    CPU_LOAD=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $1}' | tr -d ' ')
 fi
 
-LOAD_INT=$(echo "$LOAD" | cut -d. -f1)
+LOAD_INT=$(echo "$CPU_LOAD" | cut -d. -f1)
 if [ "$LOAD_INT" -ge "$CPU_CORES" ] 2>/dev/null; then
-    warn "High load average: $LOAD (cores: $CPU_CORES)"
+    warn "High load average: $CPU_LOAD (cores: $CPU_CORES)"
 else
-    ok "Load average: $LOAD (cores: $CPU_CORES)"
+    ok "Load average: $CPU_LOAD (cores: $CPU_CORES)"
 fi
 
 # =============================================================
@@ -138,8 +152,6 @@ if [ "$OS" = "Linux" ]; then
         else
             ok "No failed services"
         fi
-    else
-        info "systemctl not available"
     fi
 fi
 
@@ -149,6 +161,7 @@ fi
 section "Disk Health (SMART)"
 if command -v smartctl &>/dev/null; then
     DISKS_CHECKED=0
+    DISKS_FAILED=0
     for disk in /dev/sd[a-z] /dev/nvme[0-9]n[0-9] /dev/disk[0-9]; do
         if [ -b "$disk" ] 2>/dev/null; then
             STATUS=$(smartctl -H "$disk" 2>/dev/null | grep "overall-health\|result:" | awk '{print $NF}')
@@ -156,7 +169,7 @@ if command -v smartctl &>/dev/null; then
                 DISKS_CHECKED=$((DISKS_CHECKED+1))
                 case "$STATUS" in
                     PASSED|OK) ok "$disk: $STATUS" ;;
-                    *) crit "$disk: $STATUS" ;;
+                    *) crit "$disk: $STATUS"; DISKS_FAILED=$((DISKS_FAILED+1)) ;;
                 esac
             fi
         fi
@@ -165,21 +178,20 @@ if command -v smartctl &>/dev/null; then
         info "No disks found for SMART check (may need root)"
     fi
 else
-    info "smartctl not found — install smartmontools for disk health checks"
+    info "smartctl not found - install smartmontools for disk health checks"
 fi
 
 # =============================================================
-# Last Logins (Linux/macOS)
+# Recent Logins
 # =============================================================
 section "Recent Logins"
-last | head -5 | tee -a "$LOG_FILE"
+last 2>/dev/null | head -5 | tee -a "$LOG_FILE"
 
 # =============================================================
 # Network
 # =============================================================
 section "Network"
 if [ "$OS" = "Darwin" ]; then
-    # Check default gateway reachable
     GW=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}')
     if [ -n "$GW" ]; then
         if ping -c 1 -W 2 "$GW" &>/dev/null; then
@@ -188,14 +200,12 @@ if [ "$OS" = "Darwin" ]; then
             warn "Gateway $GW unreachable"
         fi
     fi
-    # Internet check
     if ping -c 1 -W 3 8.8.8.8 &>/dev/null; then
         ok "Internet connectivity: OK"
     else
         crit "No internet connectivity"
     fi
 else
-    # Linux network check
     if ping -c 1 -W 3 8.8.8.8 &>/dev/null; then
         ok "Internet connectivity: OK"
     else
@@ -204,19 +214,24 @@ else
 fi
 
 # =============================================================
-# Summary
+# Summary + MQTT reporting
 # =============================================================
 echo "" | tee -a "$LOG_FILE"
 echo "============================================================" | tee -a "$LOG_FILE"
 if [ "$ISSUES" -eq 0 ]; then
-    echo -e "${GREEN}  ✅ Health check passed — no issues found${NC}" | tee -a "$LOG_FILE"
-elif [ "$ISSUES" -eq 1 ]; then
-    echo -e "${YELLOW}  ⚠️  Health check complete — 1 issue found${NC}" | tee -a "$LOG_FILE"
+    echo -e "${GREEN}  OK  Health check passed - no issues found${NC}" | tee -a "$LOG_FILE"
 else
-    echo -e "${RED}  ❌ Health check complete — $ISSUES issues found${NC}" | tee -a "$LOG_FILE"
+    echo -e "${RED}  ERR Health check complete - $ISSUES issues found${NC}" | tee -a "$LOG_FILE"
 fi
 echo "  Log saved to $LOG_FILE" | tee -a "$LOG_FILE"
 echo "============================================================" | tee -a "$LOG_FILE"
+
+# Publish to MQTT
+METRICS="disk_root=${DISK_ROOT_PCT}%,disk_data=${DISK_DATA_PCT}%,mem=${MEM_PCT}%,cpu_load=${CPU_LOAD}"
+mqtt_report_health "$ISSUES" "$METRICS"
+mqtt_report_disk "root" "$DISK_ROOT_PCT"
+[ -n "$DISK_DATA_PCT" ] && mqtt_report_disk "data" "$DISK_DATA_PCT"
+
 echo ""
 echo "Press ENTER to close..."
 read -r
