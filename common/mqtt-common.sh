@@ -90,7 +90,7 @@ JSON
 )
     mqtt_publish "update/status" "$payload"
     mqtt_publish "update/last_run" "$timestamp"
-    mqtt_publish "update/result" "$status"
+    mqtt_publish "update/result" "$mqtt_status"
 }
 
 # =============================================================
