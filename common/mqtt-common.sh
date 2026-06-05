@@ -71,7 +71,7 @@ mqtt_publish() {
 # Usage: mqtt_report_update "success|failed" "2 packages updated"
 # =============================================================
 mqtt_report_update() {
-    local status="$1"
+    local mqtt_status="$1"
     local summary="$2"
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -81,7 +81,7 @@ mqtt_report_update() {
 {
   "device": "$DEVICE_NAME",
   "type": "update",
-  "status": "$status",
+  "status": "$mqtt_status",
   "summary": "$summary",
   "timestamp": "$timestamp",
   "location": "${DEVICE_LOCATION:-unknown}"
@@ -103,7 +103,7 @@ mqtt_report_health() {
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    local status="ok"
+    local mqtt_status="ok"
     if [ "$issues" -gt 0 ]; then
         status="warning"
     fi
@@ -113,7 +113,7 @@ mqtt_report_health() {
 {
   "device": "$DEVICE_NAME",
   "type": "health",
-  "status": "$status",
+  "status": "$mqtt_status",
   "issues": $issues,
   "metrics": "$metrics",
   "timestamp": "$timestamp",
@@ -133,7 +133,7 @@ JSON
 mqtt_report_disk() {
     local disk="$1"
     local percent="$2"
-    mqtt_publish "health/disk$(echo "$disk" | tr '/' '_')" "$percent"
+    mqtt_publish "health/disk_$(echo "$disk" | tr '/' '_' | sed 's/^_//')" "$percent"
 }
 
 # =============================================================
@@ -147,7 +147,7 @@ mqtt_report_network() {
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    local status="ok"
+    local mqtt_status="ok"
     if [ "$up" -lt "$total" ]; then
         status="warning"
     fi
@@ -157,7 +157,7 @@ mqtt_report_network() {
 {
   "device": "$DEVICE_NAME",
   "type": "network",
-  "status": "$status",
+  "status": "$mqtt_status",
   "hosts_up": $up,
   "hosts_total": $total,
   "summary": "$summary",

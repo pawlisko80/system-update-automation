@@ -121,7 +121,7 @@ echo "" | tee -a $LOG
 echo "Upgrading Homebrew packages..." | tee -a $LOG
 BREW_OUTPUT=$(/opt/homebrew/bin/brew upgrade --greedy 2>&1)
 echo "$BREW_OUTPUT" | tee -a $LOG
-PACKAGES_UPGRADED=$(echo "$BREW_OUTPUT" | grep -c "was successfully upgraded" || echo 0)
+PACKAGES_UPGRADED=$(echo "$BREW_OUTPUT" | grep -c "was successfully upgraded" 2>/dev/null || true); PACKAGES_UPGRADED=${PACKAGES_UPGRADED:-0}
 
 # =============================================================
 # App Store
@@ -132,7 +132,7 @@ if command -v /opt/homebrew/bin/mas &>/dev/null; then
     export MAS_NO_AUTO_INDEX=1
     MAS_OUTPUT=$(/opt/homebrew/bin/mas upgrade 2>&1)
     echo "$MAS_OUTPUT" | tee -a $LOG
-    MAS_UPGRADED=$(echo "$MAS_OUTPUT" | grep -c "upgraded" || echo 0)
+    MAS_UPGRADED=$(echo "$MAS_OUTPUT" | grep -c "upgraded" 2>/dev/null || true); MAS_UPGRADED=${MAS_UPGRADED:-0}
     PACKAGES_UPGRADED=$((PACKAGES_UPGRADED + MAS_UPGRADED))
 else
     echo "mas not installed - skipping App Store updates" | tee -a $LOG
