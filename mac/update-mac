@@ -1,6 +1,6 @@
 #!/bin/zsh
 # =============================================================
-# update-mac — macOS maintenance and update automation script
+# update-mac - macOS maintenance and update automation script
 # Requires: macOS 12 (Monterey)+, Homebrew 3.0+, mas 1.8+
 # Tested on: macOS 26 Tahoe (Apple Silicon)
 # Repo: https://github.com/pawlisko80/system-update-automation
@@ -9,12 +9,20 @@
 # =============================================================
 # Configuration
 # =============================================================
-SELF_UPDATE_INTERVAL_DAYS=7        # How often to prompt for script updates
+SELF_UPDATE_INTERVAL_DAYS=7
 SELF_UPDATE_SCRIPT=~/scripts/self-update.sh
 SELF_UPDATE_STAMP=~/.scripts-last-update
 
 LOG_DIR=~/Documents/logs/mac
 LOG=$LOG_DIR/mac-update.log
+
+SCRIPTS_DIR=~/scripts
+
+# =============================================================
+# Load local config (.env.local) and MQTT helpers
+# =============================================================
+[ -f "$SCRIPTS_DIR/.env.local" ] && source "$SCRIPTS_DIR/.env.local"
+[ -f "$SCRIPTS_DIR/common/mqtt-common.sh" ] && source "$SCRIPTS_DIR/common/mqtt-common.sh"
 
 # =============================================================
 # Version checks
@@ -49,15 +57,8 @@ check_requirements() {
 # Self-update check
 # =============================================================
 check_self_update() {
-    # Skip if self-update script doesn't exist
-    if [ ! -f "$SELF_UPDATE_SCRIPT" ]; then
-        return
-    fi
-
-    # Skip if no internet (quick check)
-    if ! ping -c 1 -W 2 github.com &>/dev/null 2>&1; then
-        return
-    fi
+    if [ ! -f "$SELF_UPDATE_SCRIPT" ]; then return; fi
+    if ! ping -c 1 -W 2 github.com &>/dev/null 2>&1; then return; fi
 
     local should_ask=0
     local days_since=0
@@ -78,9 +79,9 @@ check_self_update() {
     if [ "$should_ask" -eq 1 ]; then
         echo ""
         if [ "$days_since" = "unknown" ]; then
-            echo "🔄 Script updates have never been checked."
+            echo "Script updates have never been checked."
         else
-            echo "🔄 Scripts last updated $days_since day(s) ago (interval: ${SELF_UPDATE_INTERVAL_DAYS} days)."
+            echo "Scripts last updated $days_since day(s) ago (interval: ${SELF_UPDATE_INTERVAL_DAYS} days)."
         fi
         echo -n "   Pull latest scripts from GitHub? (Y/N): "
         read REPLY
@@ -89,7 +90,6 @@ check_self_update() {
             "$SELF_UPDATE_SCRIPT"
             echo ""
         fi
-        # Update timestamp regardless of answer
         date +%s > "$SELF_UPDATE_STAMP"
     fi
 }
@@ -101,8 +101,12 @@ mkdir -p "$LOG_DIR"
 check_requirements
 check_self_update
 
+PACKAGES_UPGRADED=0
+UPDATE_STATUS="success"
+UPDATE_SUMMARY=""
+
 echo "========================================" | tee -a $LOG
-echo "🍺 Starting Mac update - $(date)" | tee -a $LOG
+echo "Starting Mac update - $(date)" | tee -a $LOG
 echo "macOS $(sw_vers -productVersion) | $(uname -m)" | tee -a $LOG
 echo "========================================" | tee -a $LOG
 echo "" | tee -a $LOG
@@ -110,90 +114,103 @@ echo "" | tee -a $LOG
 # =============================================================
 # Homebrew
 # =============================================================
-echo "📦 Updating Homebrew..." | tee -a $LOG
+echo "Updating Homebrew..." | tee -a $LOG
 /opt/homebrew/bin/brew update 2>&1 | tee -a $LOG
 
 echo "" | tee -a $LOG
-echo "⬆️  Upgrading Homebrew packages..." | tee -a $LOG
-/opt/homebrew/bin/brew upgrade --greedy 2>&1 | tee -a $LOG
+echo "Upgrading Homebrew packages..." | tee -a $LOG
+BREW_OUTPUT=$(/opt/homebrew/bin/brew upgrade --greedy 2>&1)
+echo "$BREW_OUTPUT" | tee -a $LOG
+PACKAGES_UPGRADED=$(echo "$BREW_OUTPUT" | grep -c "was successfully upgraded" || echo 0)
 
 # =============================================================
 # App Store
 # =============================================================
 echo "" | tee -a $LOG
-echo "🛍️  Updating App Store apps..." | tee -a $LOG
+echo "Updating App Store apps..." | tee -a $LOG
 if command -v /opt/homebrew/bin/mas &>/dev/null; then
     export MAS_NO_AUTO_INDEX=1
-    /opt/homebrew/bin/mas upgrade 2>&1 | tee -a $LOG
+    MAS_OUTPUT=$(/opt/homebrew/bin/mas upgrade 2>&1)
+    echo "$MAS_OUTPUT" | tee -a $LOG
+    MAS_UPGRADED=$(echo "$MAS_OUTPUT" | grep -c "upgraded" || echo 0)
+    PACKAGES_UPGRADED=$((PACKAGES_UPGRADED + MAS_UPGRADED))
 else
-    echo "⚠️  mas not installed — skipping App Store updates" | tee -a $LOG
+    echo "mas not installed - skipping App Store updates" | tee -a $LOG
 fi
 
 # =============================================================
 # Cleanup
 # =============================================================
 echo "" | tee -a $LOG
-echo "🧹 Cleaning up..." | tee -a $LOG
+echo "Cleaning up..." | tee -a $LOG
 /opt/homebrew/bin/brew cleanup 2>&1 | tee -a $LOG
 
 # =============================================================
 # macOS updates
 # =============================================================
 echo "" | tee -a $LOG
-echo "🍎 Checking for macOS updates..." | tee -a $LOG
+echo "Checking for macOS updates..." | tee -a $LOG
 MACOS_UPDATES=$(softwareupdate -l 2>&1)
 echo "$MACOS_UPDATES" | tee -a $LOG
 
+MACOS_PENDING=0
 if echo "$MACOS_UPDATES" | grep -q "Label:"; then
+    MACOS_PENDING=$(echo "$MACOS_UPDATES" | grep -c "Label:" || echo 0)
     echo "" | tee -a $LOG
-    echo "⚠️  macOS updates are available!" | tee -a $LOG
+    echo "macOS updates available!" | tee -a $LOG
     echo "Press Y to install now, or RETURN to skip..."
     read REPLY
     if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        echo "⬆️  Installing macOS updates..." | tee -a $LOG
+        echo "Installing macOS updates..." | tee -a $LOG
         sudo softwareupdate --install --all 2>&1 | tee -a $LOG
-        echo "✅ macOS updates installed! A reboot may be required." | tee -a $LOG
+        echo "macOS updates installed! A reboot may be required." | tee -a $LOG
+        MACOS_PENDING=0
     else
-        echo "⏭️  Skipping macOS updates." | tee -a $LOG
+        echo "Skipping macOS updates." | tee -a $LOG
     fi
 else
-    echo "✅ macOS is up to date!" | tee -a $LOG
+    echo "macOS is up to date!" | tee -a $LOG
 fi
+
+# =============================================================
+# Disk usage for MQTT reporting
+# =============================================================
+DISK_PERCENT=$(df -H / 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')
+DATA_PERCENT=$(df -H /System/Volumes/Data 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')
 
 # =============================================================
 # Manual update reminders
 # =============================================================
 echo "" | tee -a $LOG
 echo "========================================" | tee -a $LOG
-echo "⚠️  Manual update reminders:" | tee -a $LOG
+echo "Manual update reminders:" | tee -a $LOG
 echo "========================================" | tee -a $LOG
 
 if [ -d "/Applications/SamsungMagician.app" ]; then
-    echo "🔵 Samsung Magician — open app to check for updates" | tee -a $LOG
-else
-    echo "⚪ Samsung Magician — not installed" | tee -a $LOG
+    echo "Samsung Magician - open app to check for updates" | tee -a $LOG
 fi
-
 if [ -d "/Applications/VMware Fusion.app" ]; then
-    echo "🔵 VMware Fusion — check via Help → Software Updates" | tee -a $LOG
-else
-    echo "⚪ VMware Fusion — not installed (download from support.broadcom.com)" | tee -a $LOG
+    echo "VMware Fusion - check via Help -> Software Updates" | tee -a $LOG
 fi
-
 if [ -d "/Applications/OVPN/OVPN.app" ] || [ -d "/Applications/OVPN.app" ]; then
-    echo "🔵 OVPN — check for updates within the app" | tee -a $LOG
-else
-    echo "⚪ OVPN — not installed" | tee -a $LOG
+    echo "OVPN - check for updates within the app" | tee -a $LOG
+fi
+if ls /Applications | grep -q "Microsoft Word"; then
+    echo "Microsoft Office - check via Help -> Check for Updates" | tee -a $LOG
+fi
+if ! command -v smartctl &>/dev/null; then
+    echo "smartmontools - not installed (brew install smartmontools)" | tee -a $LOG
 fi
 
-if ls /Applications | grep -q "Microsoft Word"; then
-    echo "🔵 Microsoft Office — check via Help → Check for Updates in any Office app" | tee -a $LOG
-fi
+# =============================================================
+# MQTT reporting
+# =============================================================
+UPDATE_SUMMARY="${PACKAGES_UPGRADED} packages upgraded, macOS pending: ${MACOS_PENDING}"
+mqtt_report_update "success" "$UPDATE_SUMMARY"
+mqtt_report_disk "root" "$DISK_PERCENT"
+mqtt_report_disk "data" "$DATA_PERCENT"
 
 echo "" | tee -a $LOG
-if ! command -v smartctl &>/dev/null; then
-    echo "⚪ smartmontools — not installed (brew install smartmontools)" | tee -a $LOG
-fi
-echo "✅ All done! Log saved to $LOG" | tee -a $LOG
+echo "All done! Log saved to $LOG" | tee -a $LOG
 echo "Press RETURN to close..."
 read
