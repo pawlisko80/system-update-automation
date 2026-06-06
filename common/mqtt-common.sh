@@ -54,7 +54,7 @@ mqtt_publish() {
             -t "$full_topic" \
             -m "$message" \
             -q 1 \
-            2>/dev/null
+            >/dev/null 2>&1
     else
         mosquitto_pub \
             -h "$MQTT_BROKER" \
@@ -62,7 +62,7 @@ mqtt_publish() {
             -t "$full_topic" \
             -m "$message" \
             -q 1 \
-            2>/dev/null
+            >/dev/null 2>&1
     fi
 }
 
@@ -189,11 +189,11 @@ http_report() {
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $STATUS_SERVER_TOKEN" \
             -d "$payload" \
-            2>/dev/null
+            >/dev/null 2>&1
     else
         curl -s -X POST "$STATUS_SERVER_URL" \
             -H "Content-Type: application/json" \
             -d "$payload" \
-            2>/dev/null
+            >/dev/null 2>&1
     fi
 }
