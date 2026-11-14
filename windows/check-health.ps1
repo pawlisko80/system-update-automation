@@ -138,6 +138,15 @@ if ($Issues -eq 0) {
     Write-Host "  ERR Health check complete - $Issues issue(s) found" -ForegroundColor Red
     Add-Content $LogFile "  ERR Health check complete - $Issues issue(s) found"
 }
+# MQTT reporting (silent if not configured)
+$mqttLib = Join-Path $PSScriptRoot "mqtt-common.ps1"
+if (Test-Path $mqttLib) {
+    . $mqttLib
+    $cDrive = Get-PSDrive C
+    $diskPct = [math]::Round($cDrive.Used / ($cDrive.Used + $cDrive.Free) * 100)
+    Send-MqttHealth $Issues "disk_root=$diskPct%,mem=$usedPct%,cpu=$cpu%"
+    Send-MqttDisk "root" $diskPct
+}
 Write-Log "Log saved to $LogFile"
 Write-Sep
 Write-Host ""

@@ -1,4 +1,4 @@
-﻿#Requires -RunAsAdministrator
+#Requires -RunAsAdministrator
 param()
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -188,6 +188,16 @@ Write-Log ">> Microsoft Office - update via any Office app: File -> Account -> U
 Write-Log ">> VMware Tools - update via VMware Fusion/Workstation if VM is running"
 
 Write-Log ""
+# MQTT reporting (silent if not configured)
+$mqttLib = Join-Path $PSScriptRoot "mqtt-common.ps1"
+if (Test-Path $mqttLib) {
+    . $mqttLib
+    $pendingCount = if ($updates) { $updates.Count } else { 0 }
+    $cDrive = Get-PSDrive C
+    $diskPct = [math]::Round($cDrive.Used / ($cDrive.Used + $cDrive.Free) * 100)
+    Send-MqttUpdate "success" "Run complete, Windows updates found: $pendingCount"
+    Send-MqttDisk "root" $diskPct
+}
 Write-Separator
 Write-Log "All done! Log saved to $LogFile"
 Write-Separator
