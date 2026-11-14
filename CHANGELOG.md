@@ -5,6 +5,60 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.9.0] - 2026-11-13
+
+### Added
+- `windows/mqtt-common.ps1` - MQTT helpers for Windows (reads local `.env.local`, silent if not configured)
+- MQTT reporting in `windows/update-windows.ps1` and `windows/check-health.ps1`, same topics as macOS
+- `windows/create-shortcut.ps1` - creates the "Windows Maintenance" desktop shortcut
+
+### Changed
+- `windows/menu.ps1` - finds PowerShell 7 dynamically (`Get-Command pwsh`), which supports the Microsoft Store install
+
+### Notes
+- Windows publishes through `mosquitto_pub.exe` from the winget Mosquitto package; stop and disable the local broker service it installs
+
+---
+
+## [1.8.1] - 2026-06-05
+
+### Fixed
+- MQTT: `status` is a reserved variable in zsh; renamed to `mqtt_status`
+- MQTT: disk topics are now `health/disk_root` and `health/disk_data`
+- MQTT: `update/result` publishes the real result instead of a package count
+- MQTT: `mosquitto_pub` output no longer appears in the terminal
+- `update-mac`: package counting no longer fails with a math error when nothing was upgraded
+
+---
+
+## [1.8.0] - 2026-06-05
+
+### Added
+- `common/mqtt-common.sh` - MQTT helper library (update, health, disk, network reports)
+- `.env.local.template` - local configuration template; `.env.local` is git-ignored
+- MQTT reporting in `update-mac`, `common/check-health.sh`, `common/network-check.sh`
+
+---
+
+## [1.7.0] - 2026-04-25
+
+### Added
+- ChromeOS (Crostini) support: `chromeos/update-chromeos.sh` and `chromeos/menu`
+
+---
+
+## [1.6.1] - 2026-04-25
+
+### Fixed
+- Mac menu header alignment for long hostnames
+- Health, network and security log paths now use `~/Documents/logs/` on macOS
+- Health and inventory scripts filter TimeMachine volumes from disk output
+
+### Added
+- `smartmontools` documented as an optional dependency
+
+---
+
 ## [1.6.0] - 2026-04-18
 
 ### Added

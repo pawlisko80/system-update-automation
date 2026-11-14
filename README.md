@@ -17,6 +17,7 @@ Covers desktops, servers, NAS devices, firewalls, routers, and hypervisors.
 | Linux | Alpine | linux/alpine/update-alpine.sh | Alpine 3.12 |
 | Linux | Generic (auto-detect) | linux/update-linux.sh | apt / dnf / pacman / zypper |
 | SBC | Raspberry Pi OS | raspios/update-raspi.sh | Pi OS Buster (10) |
+| ChromeOS | Crostini (Linux) | chromeos/update-chromeos.sh | ChromeOS with Linux enabled |
 | BSD | FreeBSD | freebsd/update-freebsd.sh | FreeBSD 12.0 |
 | NAS | QNAP | nas/update-qnap.sh | QTS 4.5 |
 | NAS | Synology | nas/update-synology.sh | DSM 6.2 |
@@ -126,6 +127,7 @@ Every platform has an interactive menu with all maintenance options:
 | macOS | menu |
 | Linux | menu |
 | Raspberry Pi | menu |
+| ChromeOS | menu |
 | FreeBSD | menu |
 | Windows | C:\scripts\windows\menu.ps1 (as Admin) |
 
@@ -208,6 +210,82 @@ Configure common/notify.sh with your preferred channels:
 | Email | Set NOTIFY_EMAIL (requires sendmail/msmtp) |
 
 Test with: bash ~/scripts/common/notify.sh
+
+---
+
+## MQTT Reporting (optional)
+
+Scripts can publish their results to an MQTT broker (for example Mosquitto), so Home Assistant
+or any MQTT client can see every machine in one place. If MQTT is not configured, the scripts
+behave exactly as before.
+
+Currently reporting: update-mac, check-health.sh, network-check.sh (Mac/Linux),
+update-windows.ps1 and check-health.ps1 (Windows). Other scripts do not publish yet.
+
+### Setup
+
+1. Install the MQTT client tools:
+
+        macOS:          brew install mosquitto
+        Windows:        winget install --id EclipseFoundation.Mosquitto
+        Linux/ChromeOS: sudo apt install mosquitto-clients
+
+2. Create the local config file (it is in .gitignore and is never committed):
+
+        Mac/Linux:  cp ~/scripts/.env.local.template ~/scripts/.env.local
+        Windows:    Copy-Item C:\scripts\.env.local.template C:\scripts\.env.local
+
+3. Edit .env.local and set at least:
+
+        MQTT_BROKER="10.20.30.39"
+        MQTT_TOPIC_PREFIX="homelab"
+        DEVICE_NAME="macbook-pawel"
+
+   DEVICE_NAME defaults to the lowercase short hostname if left empty.
+
+4. Verify from any machine with the client tools:
+
+        mosquitto_sub -h 10.20.30.39 -t "homelab/#" -v
+
+### Windows notes
+
+- The Mosquitto installer also registers a local broker service. If your broker runs elsewhere,
+  stop and disable it:
+
+        Stop-Service mosquitto
+        Set-Service mosquitto -StartupType Disabled
+
+- The installer may not add mosquitto_pub to PATH. windows/mqtt-common.ps1 also looks in
+  C:\Program Files\mosquitto\.
+- On Windows 11 ARM64 the winget package is an x64 build that runs under emulation.
+  Publishing worked in testing on an ARM64 VM.
+
+### Topics
+
+All topics start with PREFIX/DEVICE_NAME/ (for example homelab/macbook-pawel/).
+
+| Topic | Value | Published by |
+|---|---|---|
+| update/status | JSON: device, type, status, summary, timestamp, location | update-mac, update-windows.ps1 |
+| update/last_run | UTC timestamp | update-mac, update-windows.ps1 |
+| update/result | success | update-mac, update-windows.ps1 |
+| health/status | JSON: status, issues, metrics, timestamp | check-health (both platforms) |
+| health/issues | number of warnings/errors | check-health (both platforms) |
+| health/last_run | UTC timestamp | check-health (both platforms) |
+| health/disk_root | percent used | update-mac, check-health (both platforms) |
+| health/disk_data | percent used (macOS data volume) | update-mac, check-health.sh on Mac |
+| network/status | JSON: hosts up/total, summary | network-check.sh |
+| network/hosts_up, network/hosts_total | numbers | network-check.sh |
+| network/host/NAME | up or down | network-check.sh |
+
+### Limitations
+
+- update/result is always success when a script reaches its end. Failures in individual
+  steps (brew, winget, Windows Update) are not detected yet.
+- The broker in the example setup allows anonymous connections, so use it only on a trusted
+  network. MQTT_USERNAME and MQTT_PASSWORD are supported and are stored in plain text in
+  .env.local.
+- windows/network-check.ps1 does not publish to MQTT yet.
 
 ---
 
